@@ -1017,8 +1017,27 @@ const CentroidGame = () => {
       {showRecap && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-lg p-4 max-w-[300px] w-full max-h-[80vh] overflow-y-auto">
+            {/* Action Buttons at the top */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => {
+                  setShowRecap(false);
+                  resetGame();
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors text-sm"
+              >
+                <RotateCcw size={14} />
+                Play Again
+              </button>
+              <button
+                onClick={() => setShowRecap(false)}
+                className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded font-medium transition-colors text-sm"
+              >
+                Close
+              </button>
+            </div>
             <div className="text-center mb-4">
-              <h2 className="text-lg font-bold text-gray-800 mb-2">Game Complete!</h2>
+              {/* No 'Game Complete!' text */}
               <p className="text-sm text-gray-600 mb-3">
                 {recapMessageIdx !== null ? congratulatoryMessages[recapMessageIdx] : ''}
               </p>
@@ -1026,10 +1045,8 @@ const CentroidGame = () => {
                 Final Score: {score.totalMoves} points
               </div>
             </div>
-            
-            {/* Round History */}
+            {/* Round History (no title) */}
             <div className="mb-4">
-              <h3 className="text-sm font-bold text-gray-800 mb-2">Round Performance</h3>
               <div className="space-y-2">
                 {roundHistory.map((round, index) => (
                   <div key={index} className="flex items-center justify-between text-xs">
@@ -1048,68 +1065,31 @@ const CentroidGame = () => {
                 ))}
               </div>
             </div>
-            
-            {/* Emoji Histogram: stack ◽️ for each instance */}
+            {/* Stats: Perfect rounds and Average score above histogram */}
+            <div className="mb-2 text-xs text-gray-600 flex justify-between">
+              <span>Perfect rounds: <span className="font-medium">{roundHistory.filter(r => r.perfect).length}</span></span>
+              <span>Average score: <span className="font-medium">{(roundHistory.reduce((sum, r) => sum + r.score, 0) / roundHistory.length).toFixed(1)}</span></span>
+            </div>
+            {/* Emoji Histogram: stack ◽️ for each instance (no title) */}
             <div className="mb-4">
-              <h3 className="text-sm font-bold text-gray-800 mb-2">Score Distribution</h3>
               <div className="flex items-end gap-1 h-24">
                 {Array.from({ length: 10 }, (_, i) => {
-                  const count = roundHistory.filter(r => r.score === i).length;
+                  const count = roundHistory.filter(r => (i < 9 ? r.score === i : r.score >= 9)).length;
                   return (
                     <div key={i} className="flex-1 flex flex-col-reverse items-center h-24 justify-end">
-                      {/* Stack ◽️ for each instance */}
+                      {/* Stack ◽️ for each instance, smaller font */}
                       {count > 0 ? (
                         Array.from({ length: count }).map((_, idx) => (
-                          <span key={idx} className="text-2xl leading-none">◽️</span>
+                          <span key={idx} className="text-base leading-none">◽️</span>
                         ))
                       ) : (
-                        <span className="text-gray-400 text-lg leading-none">-</span>
+                        <span className="text-gray-400 text-base leading-none">-</span>
                       )}
-                      <span className="text-xs text-gray-500 mt-0.5">{i}</span>
+                      <span className="text-xs text-gray-500 mt-0.5">{i === 9 ? '9+' : i}</span>
                     </div>
                   );
                 })}
               </div>
-            </div>
-            
-            {/* Stats */}
-            <div className="mb-4 text-xs text-gray-600">
-              <div className="flex justify-between">
-                <span>Perfect rounds:</span>
-                <span className="font-medium">{roundHistory.filter(r => r.perfect).length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Average score:</span>
-                <span className="font-medium">
-                  {(roundHistory.reduce((sum, r) => sum + r.score, 0) / roundHistory.length).toFixed(1)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Best round:</span>
-                <span className="font-medium">
-                  {Math.min(...roundHistory.map(r => r.score))}
-                </span>
-              </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setShowRecap(false);
-                  resetGame();
-                }}
-                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors text-sm"
-              >
-                <RotateCcw size={14} />
-                Play Again
-              </button>
-              <button
-                onClick={() => setShowRecap(false)}
-                className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded font-medium transition-colors text-sm"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
