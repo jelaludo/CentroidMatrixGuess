@@ -16,9 +16,15 @@ const CentroidGame = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPenalty, setTimerPenalty] = useState(0);
   const [perfectGuess, setPerfectGuess] = useState(false);
-  const [gameMode, setGameMode] = useState('GRID'); // 'GRID' or 'DOTS'
+  const [gameMode, setGameMode] = useState('GRID'); // 'GRID' or 'DOTS' or 'FLOW'
   const [roundHistory, setRoundHistory] = useState([]);
   const [showRecap, setShowRecap] = useState(false);
+  const [flowDots, setFlowDots] = useState([]); // For FLOW mode: {x, y, vx, vy, phase, trail: [{x, y, t}]}
+  const [isFlowRunning, setIsFlowRunning] = useState(false);
+  const FLOW_TRAIL_LENGTH = 12;
+  const FLOW_DOT_RADIUS = 6;
+  const FLOW_DOT_SPEED = 0.08; // px/ms
+  const FLOW_PULSE_SPEED = 0.0025; // radians/ms
 
   // Congratulatory messages
   const congratulatoryMessages = [
@@ -261,19 +267,19 @@ const CentroidGame = () => {
   };
 
   const validateGuess = () => {
-    if (!userGuess || !actualCentroid) return;
-    
+    if (!userGuess || (!actualCentroid && gameMode !== 'FLOW')) return;
     let distance, totalScore;
-    
     if (gameMode === 'GRID') {
-      // GRID mode: Manhattan distance to nearest grid point
       const nearestGridPoint = findNearestGridPoint(actualCentroid);
       distance = calculateManhattanDistance(userGuess, nearestGridPoint);
       totalScore = distance + timerPenalty;
-    } else {
-      // DOTS mode: Euclidean distance to exact centroid
+    } else if (gameMode === 'DOTS') {
       distance = calculateEuclideanDistance(userGuess, actualCentroid);
-      // Perfect guess (within 0.5 units) scores 0, otherwise scale by 2
+      const baseScore = distance < 0.5 ? 0 : Math.round(distance * 2);
+      totalScore = baseScore + timerPenalty;
+    } else if (gameMode === 'FLOW') {
+      const centroid = getFlowCentroid();
+      distance = calculateEuclideanDistance(userGuess, centroid);
       const baseScore = distance < 0.5 ? 0 : Math.round(distance * 2);
       totalScore = baseScore + timerPenalty;
     }
@@ -446,6 +452,187 @@ const CentroidGame = () => {
   const isGameComplete = score.rounds >= MAX_ROUNDS;
   const explanation = getCentroidExplanation();
 
+  // FLOW mode: unique roundId for animation effect
+  const flowRoundId = `${gameMode}-r${score.rounds}`;
+
+  // FLOW mode: initialize moving dots (gentle, arcing motion, even slower, supports 10 rounds)
+  useEffect(() => {
+    if (gameMode !== 'FLOW' || !gameStarted) return;
+    const config = getDifficultyConfig(score.rounds + 1);
+    const actualNumDots = Math.floor(Math.random() * (config.maxDots - config.minDots + 1)) + config.minDots;
+    const newDots = [];
+    for (let i = 0; i < actualNumDots; i++) {
+      const x = Math.random() * (GRID_SIZE - 1);
+      const y = Math.random() * (GRID_SIZE - 1);
+      const angle = Math.random() * 2 * Math.PI;
+      const speed = (0.006 + Math.random() * 0.004) / 3; // even slower
+      const angularVelocity = ((Math.random() - 0.5) * 0.002) / 3; // even slower arc
+      newDots.push({
+        x,
+        y,
+        angle,
+        speed,
+        angularVelocity,
+        phase: Math.random() * Math.PI * 2,
+        trail: []
+      });
+    }
+    setFlowDots(newDots);
+    setUserGuess(null);
+    setShowResult(false);
+    setShowingAnswer(false);
+    setIsFlowRunning(true);
+  }, [flowRoundId, gameStarted]);
+
+  // FLOW mode: animation loop, keyed by roundId
+  useEffect(() => {
+    if (gameMode !== 'FLOW' || !isFlowRunning) return;
+    let running = true;
+    let lastTime = performance.now();
+    function animate(now) {
+      if (!running) return;
+      const dt = Math.min(now - lastTime, 32); // cap delta for safety
+      lastTime = now;
+      setFlowDots(prevDots => prevDots.map(dot => {
+        let { x, y, angle, speed, angularVelocity, phase, trail } = dot;
+        // Update angle for arc
+        angle += angularVelocity * dt;
+        // Move
+        x += Math.cos(angle) * speed * dt;
+        y += Math.sin(angle) * speed * dt;
+        // Bounce (billiard)
+        if (x < 0) { x = 0; angle = Math.PI - angle; }
+        if (x > GRID_SIZE - 1) { x = GRID_SIZE - 1; angle = Math.PI - angle; }
+        if (y < 0) { y = 0; angle = -angle; }
+        if (y > GRID_SIZE - 1) { y = GRID_SIZE - 1; angle = -angle; }
+        // Pulsate
+        phase += FLOW_PULSE_SPEED * dt;
+        // Trail
+        const newTrail = [...trail, { x, y, t: now }].slice(-FLOW_TRAIL_LENGTH);
+        return { x, y, angle, speed, angularVelocity, phase, trail: newTrail };
+      }));
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+    return () => { running = false; };
+  }, [flowRoundId, isFlowRunning]);
+
+  // FLOW: Only stop animation after validation (showResult), not on guess
+  useEffect(() => {
+    if (gameMode === 'FLOW' && (showResult || showRecap || isGameComplete)) {
+      setIsFlowRunning(false);
+    } else if (gameMode === 'FLOW' && gameStarted && !showResult && !showRecap && !isGameComplete) {
+      setIsFlowRunning(true); // restart animation for new round
+    }
+  }, [gameMode, showResult, showRecap, isGameComplete, gameStarted, flowRoundId]);
+
+  // FLOW mode: calculate centroid
+  const getFlowCentroid = () => {
+    if (!flowDots.length) return { x: 0, y: 0 };
+    const sumX = flowDots.reduce((sum, d) => sum + d.x, 0);
+    const sumY = flowDots.reduce((sum, d) => sum + d.y, 0);
+    return { x: sumX / flowDots.length, y: sumY / flowDots.length };
+  };
+
+  // FLOW mode: handle click to place guess
+  const handleFlowClick = (e) => {
+    if (showResult || showingAnswer || !isFlowRunning) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / CELL_SIZE);
+    const y = ((e.clientY - rect.top) / CELL_SIZE);
+    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+      setUserGuess({ x, y });
+    }
+  };
+
+  // FLOW mode: render
+  const renderFlow = () => (
+    <div className={`relative bg-black rounded-lg shadow p-2 transition-all duration-300 ${
+      perfectGuess ? 'animate-pulse shadow-lg shadow-yellow-200' : ''
+    }`}
+      style={{ width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }}
+      onClick={handleFlowClick}
+    >
+      {/* Trails */}
+      {flowDots.map((dot, i) => dot.trail.map((pt, j) => (
+        <div
+          key={i + '-' + j}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: 4,
+            height: 4,
+            left: pt.x * CELL_SIZE + CELL_SIZE / 2 - 2,
+            top: pt.y * CELL_SIZE + CELL_SIZE / 2 - 2,
+            background: `rgba(96, 165, 250, ${0.15 * (j + 1) / FLOW_TRAIL_LENGTH})`,
+            zIndex: 1
+          }}
+        />
+      )))}
+      {/* Dots */}
+      {flowDots.map((dot, i) => {
+        const pulse = 0.7 + 0.3 * Math.sin(dot.phase);
+        return (
+          <div
+            key={i}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: FLOW_DOT_RADIUS * 2 * pulse,
+              height: FLOW_DOT_RADIUS * 2 * pulse,
+              left: dot.x * CELL_SIZE + CELL_SIZE / 2 - FLOW_DOT_RADIUS * pulse,
+              top: dot.y * CELL_SIZE + CELL_SIZE / 2 - FLOW_DOT_RADIUS * pulse,
+              background: `rgba(96, 165, 250, ${0.7 * pulse})`,
+              boxShadow: `0 0 8px 2px rgba(96, 165, 250, ${0.3 * pulse})`,
+              zIndex: 2
+            }}
+          />
+        );
+      })}
+      {/* User guess */}
+      {userGuess && (
+        <div
+          className={`absolute rounded-full ${showResult ? 'bg-red-500' : 'bg-orange-400'}`}
+          style={{
+            width: 12,
+            height: 12,
+            left: userGuess.x * CELL_SIZE + CELL_SIZE / 2 - 6,
+            top: userGuess.y * CELL_SIZE + CELL_SIZE / 2 - 6,
+            zIndex: 3
+          }}
+        />
+      )}
+      {/* Actual centroid */}
+      {showResult && flowDots.length > 0 && (
+        <div
+          className="absolute bg-green-500 rounded-full"
+          style={{
+            width: 12,
+            height: 12,
+            left: Math.round(getFlowCentroid().x) * CELL_SIZE + CELL_SIZE / 2 - 6,
+            top: Math.round(getFlowCentroid().y) * CELL_SIZE + CELL_SIZE / 2 - 6,
+            zIndex: 4
+          }}
+        />
+      )}
+      {/* Perfect Guess Celebration */}
+      {perfectGuess && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-2xl font-bold text-yellow-500 animate-bounce">
+            ✨
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Only show one congratulatory message
+  const [recapMessageIdx, setRecapMessageIdx] = useState(null);
+  useEffect(() => {
+    if (showRecap && recapMessageIdx === null) {
+      setRecapMessageIdx(Math.floor(Math.random() * congratulatoryMessages.length));
+    }
+    if (!showRecap) setRecapMessageIdx(null);
+  }, [showRecap]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-2">
       {/* Persistent Header with Game Mode Selector */}
@@ -478,6 +665,19 @@ const CentroidGame = () => {
             >
               DOTS
             </button>
+            <button
+              onClick={() => {
+                setGameMode('FLOW');
+                resetGame();
+              }}
+              className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                gameMode === 'FLOW' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              FLOW
+            </button>
           </div>
         </div>
       </div>
@@ -500,7 +700,7 @@ const CentroidGame = () => {
       {/* Centered Header */}
       <div className="text-center mb-3 max-w-[192px]">
         <h1 className="text-lg font-bold text-gray-800 mb-1">
-          {gameMode === 'GRID' ? 'Centroid Matrix Game' : 'Centroid Dots Game'}
+          {gameMode === 'GRID' ? 'Centroid Matrix Game' : gameMode === 'DOTS' ? 'Centroid Dots Game' : 'Centroid Flow Game'}
         </h1>
         
         {/* Compact game info */}
@@ -672,7 +872,7 @@ const CentroidGame = () => {
             </button>
           </div>
         </div>
-      ) : (
+      ) : gameMode === 'DOTS' ? (
         <div className="flex flex-col items-center space-y-2 max-w-[192px]">
           {/* DOTS Mode - Black background with pale blue dots */}
           <div className={`relative bg-black rounded-lg shadow p-2 transition-all duration-300 ${
@@ -824,6 +1024,82 @@ const CentroidGame = () => {
             </button>
           </div>
         </div>
+      ) : (
+        <div className="flex flex-col items-center space-y-2 max-w-[192px]">
+          {renderFlow()}
+
+          {/* FLOW Mode Status Messages */}
+          <div className="text-xs text-gray-600 text-center w-full">
+            {!userGuess && gameStarted && !showResult && (
+              <p>Click to place your dot</p>
+            )}
+            {userGuess && !showResult && (
+              <p>Click Validate</p>
+            )}
+            {showResult && (
+              <div className={`transition-all duration-300 ${perfectGuess ? 'text-yellow-600 font-bold scale-110' : ''}`}>
+                <span className="text-green-600">Green</span> = optimal, 
+                <span className="text-red-600">Red</span> = your dot
+                {currentRoundScore === 0 && <span className="text-green-600 font-bold">Perfect!</span>}
+              </div>
+            )}
+            {currentRoundScore !== null && (
+              <div className={`font-medium transition-all duration-300 ${perfectGuess ? 'text-yellow-600 scale-110' : 'text-orange-600'}`}>
+                Round: {currentRoundScore} pts
+              </div>
+            )}
+          </div>
+
+          {/* FLOW Mode Action Buttons */}
+          <div className="w-full space-y-1">
+            {userGuess && !showResult && !showingAnswer && (
+              <button
+                onClick={validateGuess}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
+              >
+                <Check size={12} />
+                Validate
+              </button>
+            )}
+
+            {showResult && score.rounds < MAX_ROUNDS && (
+              <button
+                onClick={proceedToNextRound}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors text-xs"
+              >
+                <ArrowRight size={12} />
+                Next Round
+              </button>
+            )}
+
+            {showResult && isGameComplete && (
+              <div className="bg-white rounded shadow p-2 text-center">
+                <div className="text-xs font-bold text-blue-600 mb-1">Complete!</div>
+                <div className="text-xs text-gray-600 mb-1">
+                  Score: <span className="font-bold text-red-600">{score.totalMoves}</span>
+                </div>
+                <button
+                  onClick={resetGame}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
+                >
+                  <RotateCcw size={12} />
+                  Play Again
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Reset Button */}
+          <div className="text-center">
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded transition-colors mx-auto"
+            >
+              <RotateCcw size={10} />
+              Reset
+            </button>
+          </div>
+        </div>
       )}
       
       {/* Recap Screen */}
@@ -833,7 +1109,7 @@ const CentroidGame = () => {
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-gray-800 mb-2">Game Complete!</h2>
               <p className="text-sm text-gray-600 mb-3">
-                {congratulatoryMessages[Math.floor(Math.random() * congratulatoryMessages.length)]}
+                {recapMessageIdx !== null ? congratulatoryMessages[recapMessageIdx] : ''}
               </p>
               <div className="text-lg font-bold text-blue-600">
                 Final Score: {score.totalMoves} points
