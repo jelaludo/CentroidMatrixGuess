@@ -17,6 +17,52 @@ const CentroidGame = () => {
   const [timerPenalty, setTimerPenalty] = useState(0);
   const [perfectGuess, setPerfectGuess] = useState(false);
   const [gameMode, setGameMode] = useState('GRID'); // 'GRID' or 'DOTS'
+  const [roundHistory, setRoundHistory] = useState([]);
+  const [showRecap, setShowRecap] = useState(false);
+
+  // Congratulatory messages
+  const congratulatoryMessages = [
+    "🎉 Amazing work! You've mastered the centroid challenge!",
+    "🌟 Outstanding performance! Your spatial reasoning is top-notch!",
+    "🏆 Brilliant! You've conquered the centroid matrix!",
+    "💫 Exceptional! Your precision is truly remarkable!",
+    "🎯 Phenomenal! You've hit the centroid bullseye!",
+    "⭐ Spectacular! Your geometric intuition is incredible!",
+    "🔥 Fantastic! You've aced the centroid game!",
+    "✨ Magnificent! Your spatial awareness is outstanding!",
+    "🚀 Incredible! You've soared through the centroid challenge!",
+    "💎 Perfect! You've polished your centroid skills to perfection!",
+    "Wow, you absolutely crushed it!",
+    "Dude, that was straight-up legendary!",
+    "Holy cow, how did you pull that off?!",
+    "You're a freakin' rockstar!",
+    "Nailed it like a pro!",
+    "That was pure genius, my friend!",
+    "Yo, you're killing it out there!",
+    "Mind. Blown. You're incredible!",
+    "Take a bow, that was phenomenal!",
+    "Well, hot damn, you did it!",
+    "OMG, you're an actual wizard!",
+    "Heck yeah, you're unstoppable!",
+    "That was next-level awesome!",
+    "You just raised the bar, champ!",
+    "Whoa, you're on fire!",
+    "Epic win, you total boss!",
+    "Dang, you made that look easy!",
+    "You're out here slaying it!",
+    "Bravo, that was pure magic!",
+    "Sweet moves, you nailed it!",
+    "Are you kidding me? That was insane!",
+    "Big props, you're a superstar!",
+    "That was clutch—way to go!",
+    "You're a master at this, wow!",
+    "Holy moly, you're unstoppable!",
+    "Look at you, shining bright!",
+    "Yesss, you totally owned that!",
+    "Incredible work, you genius!",
+    "Way to flex those skills!",
+    "Dang, you're making us all proud!"
+  ];
 
   // Mobile-optimized grid size
   const GRID_SIZE = 12; // Reduced from 20 for mobile
@@ -195,6 +241,7 @@ const CentroidGame = () => {
     setTimerPenalty(0);
     setIsTimerRunning(false);
     setPerfectGuess(false);
+    setShowRecap(false);
   };
 
   const proceedToNextRound = () => {
@@ -226,10 +273,25 @@ const CentroidGame = () => {
     } else {
       // DOTS mode: Euclidean distance to exact centroid
       distance = calculateEuclideanDistance(userGuess, actualCentroid);
-      totalScore = Math.round(distance * 10) + timerPenalty; // Scale up for better scoring
+      // Perfect guess (within 0.5 units) scores 0, otherwise scale by 2
+      const baseScore = distance < 0.5 ? 0 : Math.round(distance * 2);
+      totalScore = baseScore + timerPenalty;
     }
     
+    const currentRound = score.rounds + 1;
+    const roundData = {
+      round: currentRound,
+      score: totalScore,
+      distance: distance,
+      timerPenalty: timerPenalty,
+      difficulty: getCurrentDifficulty().name,
+      perfect: gameMode === 'GRID' ? distance === 0 : distance < 0.5
+    };
+    
     setCurrentRoundScore(totalScore);
+    setRoundHistory(prev => [...prev, roundData]);
+    
+    // Only increment rounds after validation
     setScore(prev => ({
       totalMoves: prev.totalMoves + totalScore,
       rounds: prev.rounds + 1
@@ -243,6 +305,11 @@ const CentroidGame = () => {
       setPerfectGuess(true);
       // Clear the effect after 2 seconds
       setTimeout(() => setPerfectGuess(false), 2000);
+    }
+    
+    // Show recap if this was the final round
+    if (currentRound >= MAX_ROUNDS) {
+      setTimeout(() => setShowRecap(true), 1000);
     }
   };
 
@@ -260,6 +327,8 @@ const CentroidGame = () => {
     setTimerPenalty(0);
     setIsTimerRunning(false);
     setPerfectGuess(false);
+    setRoundHistory([]);
+    setShowRecap(false);
   };
 
   const getCurrentDifficulty = () => {
@@ -753,6 +822,107 @@ const CentroidGame = () => {
               <RotateCcw size={10} />
               Reset
             </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Recap Screen */}
+      {showRecap && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg p-4 max-w-[300px] w-full max-h-[80vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <h2 className="text-lg font-bold text-gray-800 mb-2">Game Complete!</h2>
+              <p className="text-sm text-gray-600 mb-3">
+                {congratulatoryMessages[Math.floor(Math.random() * congratulatoryMessages.length)]}
+              </p>
+              <div className="text-lg font-bold text-blue-600">
+                Final Score: {score.totalMoves} points
+              </div>
+            </div>
+            
+            {/* Round History */}
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-gray-800 mb-2">Round Performance</h3>
+              <div className="space-y-2">
+                {roundHistory.map((round, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Round {round.round}:</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${
+                        round.perfect ? 'text-green-600' : 
+                        round.score <= 5 ? 'text-blue-600' : 
+                        round.score <= 10 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {round.score} pts
+                      </span>
+                      {round.perfect && <span className="text-green-600">✨</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Simple Histogram */}
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-gray-800 mb-2">Score Distribution</h3>
+              <div className="flex items-end gap-1 h-8">
+                {Array.from({ length: 10 }, (_, i) => {
+                  const count = roundHistory.filter(r => r.score === i).length;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center">
+                      {count > 0 ? (
+                        <div className="w-3 h-4 bg-blue-500 rounded-t mb-1" />
+                      ) : (
+                        <div className="w-3 h-4 flex items-end justify-center mb-1">
+                          <span className="text-gray-400 text-lg leading-none">-</span>
+                        </div>
+                      )}
+                      <span className="text-xs text-gray-500 mt-0.5">{i}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Stats */}
+            <div className="mb-4 text-xs text-gray-600">
+              <div className="flex justify-between">
+                <span>Perfect rounds:</span>
+                <span className="font-medium">{roundHistory.filter(r => r.perfect).length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Average score:</span>
+                <span className="font-medium">
+                  {(roundHistory.reduce((sum, r) => sum + r.score, 0) / roundHistory.length).toFixed(1)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Best round:</span>
+                <span className="font-medium">
+                  {Math.min(...roundHistory.map(r => r.score))}
+                </span>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowRecap(false);
+                  resetGame();
+                }}
+                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors text-sm"
+              >
+                <RotateCcw size={14} />
+                Play Again
+              </button>
+              <button
+                onClick={() => setShowRecap(false)}
+                className="flex-1 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded font-medium transition-colors text-sm"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
