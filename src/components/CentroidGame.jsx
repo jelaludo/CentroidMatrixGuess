@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RotateCcw, Target, Check, ArrowRight, Info, Calculator, TrendingUp } from 'lucide-react';
+import { RotateCcw, Target, Check, ArrowRight, Info, Calculator, TrendingUp, Clock } from 'lucide-react';
 
 const CentroidGame = () => {
   const [numDots, setNumDots] = useState(8);
@@ -12,10 +12,46 @@ const CentroidGame = () => {
   const [currentRoundScore, setCurrentRoundScore] = useState(null);
   const [showingAnswer, setShowingAnswer] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [timer, setTimer] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [timerPenalty, setTimerPenalty] = useState(0);
 
   const GRID_SIZE = 20;
   const CELL_SIZE = 20;
   const MAX_ROUNDS = 10;
+  const TIMER_PENALTY_THRESHOLD = 3; // Start adding penalty after 3 seconds
+
+  // Timer effect
+  useEffect(() => {
+    let interval = null;
+    if (isTimerRunning && !showResult && !showingAnswer) {
+      interval = setInterval(() => {
+        setTimer(prevTimer => {
+          const newTimer = prevTimer + 1;
+          // Add penalty point for each second after 3 seconds
+          if (newTimer > TIMER_PENALTY_THRESHOLD) {
+            setTimerPenalty(prev => prev + 1);
+          }
+          return newTimer;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isTimerRunning, showResult, showingAnswer]);
+
+  // Start timer when user makes a guess
+  useEffect(() => {
+    if (showResult || showingAnswer) {
+      setIsTimerRunning(false);
+    }
+  }, [showResult, showingAnswer]);
+
+  // Start timer when new round begins
+  useEffect(() => {
+    if (gameStarted && dots.length > 0 && !showResult && !showingAnswer && !userGuess) {
+      setIsTimerRunning(true);
+    }
+  }, [gameStarted, dots, showResult, showingAnswer, userGuess]);
 
   // Difficulty configuration
   const getDifficultyConfig = (round) => {
@@ -137,6 +173,9 @@ const CentroidGame = () => {
     setCurrentRoundScore(null);
     setShowingAnswer(false);
     setShowExplanation(false);
+    setTimer(0);
+    setTimerPenalty(0);
+    setIsTimerRunning(false);
     setGameStarted(true);
   }, [generateRandomDots, score.rounds]);
 
@@ -161,14 +200,16 @@ const CentroidGame = () => {
     
     const nearestGridPoint = findNearestGridPoint(actualCentroid);
     const moves = calculateManhattanDistance(userGuess, nearestGridPoint);
+    const totalRoundScore = moves + timerPenalty;
     
-    setCurrentRoundScore(moves);
+    setCurrentRoundScore(totalRoundScore);
     setScore(prev => ({
-      totalMoves: prev.totalMoves + moves,
+      totalMoves: prev.totalMoves + totalRoundScore,
       rounds: prev.rounds + 1
     }));
     
     setShowResult(true);
+    setIsTimerRunning(false);
   };
 
   const resetGame = () => {
@@ -181,6 +222,9 @@ const CentroidGame = () => {
     setCurrentRoundScore(null);
     setShowingAnswer(false);
     setShowExplanation(false);
+    setTimer(0);
+    setTimerPenalty(0);
+    setIsTimerRunning(false);
   };
 
   useEffect(() => {
@@ -203,6 +247,17 @@ const CentroidGame = () => {
     if (currentRound <= 3) return { name: "Easy", color: "text-green-600" };
     if (currentRound <= 6) return { name: "Medium", color: "text-yellow-600" };
     return { name: "Hard", color: "text-red-600" };
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getTimerColor = () => {
+    if (timer <= TIMER_PENALTY_THRESHOLD) return "text-green-600";
+    return "text-red-600";
   };
 
   const renderGrid = () => {
@@ -331,6 +386,9 @@ const CentroidGame = () => {
                 {currentRoundScore !== null && (
                   <span className="text-orange-600 ml-3 font-medium">
                     This round: {currentRoundScore} moves
+                    {timerPenalty > 0 && (
+                      <span className="text-red-600"> (+{timerPenalty} time penalty)</span>
+                    )}
                   </span>
                 )}
               </div>
@@ -349,7 +407,15 @@ const CentroidGame = () => {
         <div className="text-sm text-gray-600 mb-4">
           {!gameStarted ? (
             <div>
-              <p className="mb-2">Goal: Complete {MAX_ROUNDS} rounds with the lowest total moves. Lower scores are better!</p>
+              <p className="mb-2">Goal: Complete {MAX_ROUNDS} rounds with the lowest total score. Lower scores are better!</p>
+              <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                <p className="font-medium text-blue-800 mb-1">Scoring System:</p>
+                <ul className="text-xs text-blue-700 space-y-1">
+                  <li>• <span className="font-medium">Distance penalty:</span> Manhattan distance from your guess to optimal centroid</li>
+                  <li>• <span className="font-medium">Time penalty:</span> +1 point for each second after 3 seconds</li>
+                  <li>• <span className="font-medium">Total score:</span> Distance + Time penalties</li>
+                </ul>
+              </div>
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="font-medium text-blue-800 mb-1">Difficulty Progression:</p>
                 <ul className="text-xs text-blue-700 space-y-1">
@@ -363,8 +429,8 @@ const CentroidGame = () => {
             <div className="text-center">
               <div className="text-lg font-bold text-blue-600 mb-2">Game Complete!</div>
               <div className="text-base">
-                Final Score: <span className="font-bold text-red-600">{score.totalMoves}</span> total moves
-                <span className="text-gray-500"> (Average: {averageScore} moves per round)</span>
+                Final Score: <span className="font-bold text-red-600">{score.totalMoves}</span> total points
+                <span className="text-gray-500"> (Average: {averageScore} points per round)</span>
               </div>
               <div className="text-xs text-gray-500 mt-1">Lower scores are better! Try again to improve.</div>
             </div>
@@ -374,7 +440,10 @@ const CentroidGame = () => {
                 Round {score.rounds} Solution
               </div>
               <div className="text-base">
-                Your guess was <span className="font-bold text-red-600">{currentRoundScore}</span> moves away from optimal
+                Your total score was <span className="font-bold text-red-600">{currentRoundScore}</span> points
+                {timerPenalty > 0 && (
+                  <span className="text-red-600"> (including {timerPenalty} time penalty)</span>
+                )}
               </div>
               <div className="text-sm text-gray-600 mt-1">
                 Study the solution below. Click "Next Round" when ready to continue.
@@ -382,14 +451,21 @@ const CentroidGame = () => {
             </div>
           ) : !userGuess ? (
             <div>
-              <p>Round {score.rounds + 1}/{MAX_ROUNDS}: Click to estimate the centroid. Fewer moves to the correct spot = better score.</p>
+              <p>Round {score.rounds + 1}/{MAX_ROUNDS}: Click to estimate the centroid. Be quick - time penalties start after 3 seconds!</p>
               <p className="text-xs text-gray-500 mt-1">
                 Current difficulty: <span className={`font-medium ${getCurrentDifficulty().color}`}>{getCurrentDifficulty().name}</span>
                 {getCurrentDifficulty().name !== "Easy" && " (dots may be clustered)"}
               </p>
             </div>
           ) : !showResult ? (
-            "Click 'Validate' to see how many moves away your estimate is from the optimal centroid."
+            <div>
+              <p>Click 'Validate' to see your score. Timer is running - each second after 3 adds a penalty point!</p>
+              {timer > TIMER_PENALTY_THRESHOLD && (
+                <p className="text-xs text-red-600 mt-1">
+                  ⚠️ Time penalty active: +{timerPenalty} points so far
+                </p>
+              )}
+            </div>
           ) : (
             <div>
               <span className="text-green-600 font-medium">Green square</span> = optimal centroid, 
@@ -410,6 +486,31 @@ const CentroidGame = () => {
         </button>
       ) : (
         <div className="flex flex-col lg:flex-row items-start gap-6">
+          {/* Timer Display - Left Side */}
+          {gameStarted && (
+            <div className="flex-shrink-0">
+              <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="text-gray-600" size={20} />
+                  <span className="text-sm font-medium text-gray-700">Timer</span>
+                </div>
+                <div className={`text-2xl font-bold ${getTimerColor()}`}>
+                  {formatTime(timer)}
+                </div>
+                {timerPenalty > 0 && (
+                  <div className="text-xs text-red-600 mt-1">
+                    +{timerPenalty} penalty points
+                  </div>
+                )}
+                {timer <= TIMER_PENALTY_THRESHOLD && (
+                  <div className="text-xs text-green-600 mt-1">
+                    No penalty yet
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Static Grid - Left Side */}
           <div className="flex-shrink-0">
             <div className="relative bg-white rounded-lg shadow-lg p-4">
