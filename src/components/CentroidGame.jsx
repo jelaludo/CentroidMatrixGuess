@@ -16,6 +16,7 @@ const CentroidGame = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPenalty, setTimerPenalty] = useState(0);
   const [perfectGuess, setPerfectGuess] = useState(false);
+  const [gameMode, setGameMode] = useState('GRID'); // 'GRID' or 'DOTS'
 
   // Mobile-optimized grid size
   const GRID_SIZE = 12; // Reduced from 20 for mobile
@@ -166,6 +167,12 @@ const CentroidGame = () => {
     return Math.abs(point1.x - point2.x) + Math.abs(point1.y - point2.y);
   };
 
+  const calculateEuclideanDistance = (point1, point2) => {
+    const dx = point1.x - point2.x;
+    const dy = point1.y - point2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   const findNearestGridPoint = (centroid) => {
     return {
       x: Math.round(centroid.x),
@@ -209,9 +216,18 @@ const CentroidGame = () => {
   const validateGuess = () => {
     if (!userGuess || !actualCentroid) return;
     
-    const nearestGridPoint = findNearestGridPoint(actualCentroid);
-    const distance = calculateManhattanDistance(userGuess, nearestGridPoint);
-    const totalScore = distance + timerPenalty;
+    let distance, totalScore;
+    
+    if (gameMode === 'GRID') {
+      // GRID mode: Manhattan distance to nearest grid point
+      const nearestGridPoint = findNearestGridPoint(actualCentroid);
+      distance = calculateManhattanDistance(userGuess, nearestGridPoint);
+      totalScore = distance + timerPenalty;
+    } else {
+      // DOTS mode: Euclidean distance to exact centroid
+      distance = calculateEuclideanDistance(userGuess, actualCentroid);
+      totalScore = Math.round(distance * 10) + timerPenalty; // Scale up for better scoring
+    }
     
     setCurrentRoundScore(totalScore);
     setScore(prev => ({
@@ -221,8 +237,9 @@ const CentroidGame = () => {
     setShowResult(true);
     setIsTimerRunning(false);
     
-    // Set perfect guess effect if distance is 0
-    if (distance === 0) {
+    // Set perfect guess effect if distance is very close (within 0.5 for DOTS, 0 for GRID)
+    const isPerfect = gameMode === 'GRID' ? distance === 0 : distance < 0.5;
+    if (isPerfect) {
       setPerfectGuess(true);
       // Clear the effect after 2 seconds
       setTimeout(() => setPerfectGuess(false), 2000);
@@ -362,6 +379,40 @@ const CentroidGame = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-2">
+      {/* Persistent Header with Game Mode Selector */}
+      <div className="w-full max-w-[192px] mb-3">
+        <div className="bg-white rounded-lg shadow p-2">
+          <div className="flex gap-1">
+            <button
+              onClick={() => {
+                setGameMode('GRID');
+                resetGame();
+              }}
+              className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                gameMode === 'GRID' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              GRID
+            </button>
+            <button
+              onClick={() => {
+                setGameMode('DOTS');
+                resetGame();
+              }}
+              className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                gameMode === 'DOTS' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              DOTS
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Compact Timer at Top */}
       {gameStarted && (
         <div className="mb-2">
@@ -379,7 +430,9 @@ const CentroidGame = () => {
 
       {/* Centered Header */}
       <div className="text-center mb-3 max-w-[192px]">
-        <h1 className="text-lg font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
+        <h1 className="text-lg font-bold text-gray-800 mb-1">
+          {gameMode === 'GRID' ? 'Centroid Matrix Game' : 'Centroid Dots Game'}
+        </h1>
         
         {/* Compact game info */}
         <div className="text-xs text-gray-600">
@@ -413,7 +466,7 @@ const CentroidGame = () => {
           <Target size={16} />
           Start Game
         </button>
-      ) : (
+      ) : gameMode === 'GRID' ? (
         <div className="flex flex-col items-center space-y-2 max-w-[192px]">
           {/* Grid - Maximum Size */}
           <div className={`relative bg-white rounded-lg shadow p-2 transition-all duration-300 ${
@@ -538,6 +591,158 @@ const CentroidGame = () => {
               </div>
             </div>
           )}
+
+          {/* Reset Button */}
+          <div className="text-center">
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded transition-colors mx-auto"
+            >
+              <RotateCcw size={10} />
+              Reset
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center space-y-2 max-w-[192px]">
+          {/* DOTS Mode - Black background with pale blue dots */}
+          <div className={`relative bg-black rounded-lg shadow p-2 transition-all duration-300 ${
+            perfectGuess ? 'animate-pulse shadow-lg shadow-yellow-200' : ''
+          }`}>
+            <div
+              className="relative"
+              style={{
+                width: GRID_SIZE * CELL_SIZE,
+                height: GRID_SIZE * CELL_SIZE,
+              }}
+            >
+              {/* Render dots */}
+              {dots.map((dot, index) => (
+                <div
+                  key={index}
+                  className="absolute bg-blue-300 rounded-full"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    left: dot.x * CELL_SIZE + CELL_SIZE / 2 - 4,
+                    top: dot.y * CELL_SIZE + CELL_SIZE / 2 - 4,
+                  }}
+                />
+              ))}
+              
+              {/* User's guess */}
+              {userGuess && (
+                <div
+                  className={`absolute rounded-full ${
+                    showResult ? 'bg-red-500' : 'bg-orange-400'
+                  }`}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    left: userGuess.x * CELL_SIZE + CELL_SIZE / 2 - 4,
+                    top: userGuess.y * CELL_SIZE + CELL_SIZE / 2 - 4,
+                  }}
+                />
+              )}
+              
+              {/* Actual centroid */}
+              {showResult && actualCentroid && (
+                <div
+                  className="absolute bg-green-500 rounded-full"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    left: Math.round(actualCentroid.x) * CELL_SIZE + CELL_SIZE / 2 - 4,
+                    top: Math.round(actualCentroid.y) * CELL_SIZE + CELL_SIZE / 2 - 4,
+                  }}
+                />
+              )}
+              
+              {/* Clickable area for placing dots */}
+              <div
+                className="absolute inset-0 cursor-crosshair"
+                onClick={(e) => {
+                  if (showResult || showingAnswer) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
+                  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+                  if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                    setUserGuess({ x, y });
+                  }
+                }}
+              />
+            </div>
+            
+            {/* Perfect Guess Celebration */}
+            {perfectGuess && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-2xl font-bold text-yellow-500 animate-bounce">
+                  ✨
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* DOTS Mode Status Messages */}
+          <div className="text-xs text-gray-600 text-center w-full">
+            {!userGuess && gameStarted && !showResult && (
+              <p>Click to place your dot</p>
+            )}
+            {userGuess && !showResult && (
+              <p>Click Validate</p>
+            )}
+            {showResult && (
+              <div className={`transition-all duration-300 ${perfectGuess ? 'text-yellow-600 font-bold scale-110' : ''}`}>
+                <span className="text-green-600">Green</span> = optimal, 
+                <span className="text-red-600">Red</span> = your dot
+                {currentRoundScore === 0 && <span className="text-green-600 font-bold">Perfect!</span>}
+              </div>
+            )}
+            {currentRoundScore !== null && (
+              <div className={`font-medium transition-all duration-300 ${perfectGuess ? 'text-yellow-600 scale-110' : 'text-orange-600'}`}>
+                Round: {currentRoundScore} pts
+              </div>
+            )}
+          </div>
+
+          {/* DOTS Mode Action Buttons */}
+          <div className="w-full space-y-1">
+            {userGuess && !showResult && !showingAnswer && (
+              <button
+                onClick={validateGuess}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
+              >
+                <Check size={12} />
+                Validate
+              </button>
+            )}
+
+            {showResult && score.rounds < MAX_ROUNDS && (
+              <button
+                onClick={proceedToNextRound}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors text-xs"
+              >
+                <ArrowRight size={12} />
+                Next Round
+              </button>
+            )}
+
+            {showResult && isGameComplete && (
+              <div className="bg-white rounded shadow p-2 text-center">
+                <div className="text-xs font-bold text-blue-600 mb-1">Complete!</div>
+                <div className="text-xs text-gray-600 mb-1">
+                  Score: <span className="font-bold text-red-600">{score.totalMoves}</span>
+                </div>
+                <button
+                  onClick={resetGame}
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
+                >
+                  <RotateCcw size={12} />
+                  Play Again
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Reset Button */}
           <div className="text-center">
