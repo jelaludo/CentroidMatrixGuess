@@ -15,6 +15,7 @@ const CentroidGame = () => {
   const [timer, setTimer] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPenalty, setTimerPenalty] = useState(0);
+  const [perfectGuess, setPerfectGuess] = useState(false);
 
   // Mobile-optimized grid size
   const GRID_SIZE = 12; // Reduced from 20 for mobile
@@ -186,6 +187,7 @@ const CentroidGame = () => {
     setTimer(0);
     setTimerPenalty(0);
     setIsTimerRunning(false);
+    setPerfectGuess(false);
   };
 
   const proceedToNextRound = () => {
@@ -218,6 +220,13 @@ const CentroidGame = () => {
     }));
     setShowResult(true);
     setIsTimerRunning(false);
+    
+    // Set perfect guess effect if distance is 0
+    if (distance === 0) {
+      setPerfectGuess(true);
+      // Clear the effect after 2 seconds
+      setTimeout(() => setPerfectGuess(false), 2000);
+    }
   };
 
   const resetGame = () => {
@@ -233,6 +242,7 @@ const CentroidGame = () => {
     setTimer(0);
     setTimerPenalty(0);
     setIsTimerRunning(false);
+    setPerfectGuess(false);
   };
 
   const getCurrentDifficulty = () => {
@@ -406,7 +416,9 @@ const CentroidGame = () => {
       ) : (
         <div className="flex flex-col items-center space-y-2 max-w-[192px]">
           {/* Grid - Maximum Size */}
-          <div className="relative bg-white rounded-lg shadow p-2">
+          <div className={`relative bg-white rounded-lg shadow p-2 transition-all duration-300 ${
+            perfectGuess ? 'animate-pulse bg-yellow-50 shadow-lg shadow-yellow-200' : ''
+          }`}>
             <div
               className="grid gap-0 border border-gray-400"
               style={{
@@ -429,6 +441,15 @@ const CentroidGame = () => {
                 {renderVectors()}
               </svg>
             )}
+            
+            {/* Perfect Guess Celebration */}
+            {perfectGuess && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="text-2xl font-bold text-yellow-500 animate-bounce">
+                  ✨
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Compact Status Messages */}
@@ -440,14 +461,14 @@ const CentroidGame = () => {
               <p>Click Validate</p>
             )}
             {showResult && (
-              <div>
+              <div className={`transition-all duration-300 ${perfectGuess ? 'text-yellow-600 font-bold scale-110' : ''}`}>
                 <span className="text-green-600">Green</span> = optimal, 
                 <span className="text-red-600">Red</span> = guess
                 {currentRoundScore === 0 && <span className="text-green-600 font-bold">Perfect!</span>}
               </div>
             )}
             {currentRoundScore !== null && (
-              <div className="text-orange-600 font-medium">
+              <div className={`font-medium transition-all duration-300 ${perfectGuess ? 'text-yellow-600 scale-110' : 'text-orange-600'}`}>
                 Round: {currentRoundScore} pts
               </div>
             )}
