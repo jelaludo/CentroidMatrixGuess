@@ -16,8 +16,9 @@ const CentroidGame = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPenalty, setTimerPenalty] = useState(0);
 
-  const GRID_SIZE = 20;
-  const CELL_SIZE = 20;
+  // Mobile-optimized grid size
+  const GRID_SIZE = 12; // Reduced from 20 for mobile
+  const CELL_SIZE = 16; // Reduced from 20 for mobile
   const MAX_ROUNDS = 10;
   const TIMER_PENALTY_THRESHOLD = 3; // Start adding penalty after 3 seconds
 
@@ -57,41 +58,50 @@ const CentroidGame = () => {
   const getDifficultyConfig = (round) => {
     const baseConfig = {
       minDots: 3,
-      maxDots: 15,
+      maxDots: 12, // Reduced for mobile
       clusterBias: 0, // 0 = no clustering, 1 = strong clustering
       clusterRadius: 3
     };
 
     if (round <= 3) {
-      // Early rounds: 3-6 dots, no clustering
+      // Early rounds: 3-5 dots, no clustering
       return {
         ...baseConfig,
         minDots: 3,
-        maxDots: 6,
+        maxDots: 5,
         clusterBias: 0
       };
     } else if (round <= 6) {
-      // Middle rounds: 5-10 dots, light clustering
+      // Middle rounds: 4-8 dots, light clustering
       return {
         ...baseConfig,
-        minDots: 5,
-        maxDots: 10,
+        minDots: 4,
+        maxDots: 8,
         clusterBias: 0.3,
-        clusterRadius: 4
+        clusterRadius: 3
       };
     } else {
-      // Later rounds: 8-15 dots, strong clustering
+      // Later rounds: 6-12 dots, strong clustering
       return {
         ...baseConfig,
-        minDots: 8,
-        maxDots: 15,
+        minDots: 6,
+        maxDots: 12,
         clusterBias: 0.6,
-        clusterRadius: 5
+        clusterRadius: 4
       };
     }
   };
 
-  const generateRandomDots = useCallback((round = 1) => {
+  // Handle numDots changes only when game hasn't started
+  useEffect(() => {
+    if (!gameStarted) {
+      const newDots = generateRandomDots(1);
+      setDots(newDots);
+      setActualCentroid(calculateCentroid(newDots));
+    }
+  }, [numDots, gameStarted]);
+
+  const generateRandomDots = (round = 1) => {
     const config = getDifficultyConfig(round);
     const actualNumDots = Math.floor(Math.random() * (config.maxDots - config.minDots + 1)) + config.minDots;
     
@@ -137,7 +147,7 @@ const CentroidGame = () => {
     }
     
     return newDots;
-  }, []);
+  };
 
   const calculateCentroid = (dotArray) => {
     if (dotArray.length === 0) return { x: 0, y: 0 };
@@ -162,7 +172,7 @@ const CentroidGame = () => {
     };
   };
 
-  const startNewRound = useCallback(() => {
+  const startNewRound = () => {
     if (score.rounds >= MAX_ROUNDS) return;
     
     const newDots = generateRandomDots(score.rounds + 1);
@@ -176,8 +186,7 @@ const CentroidGame = () => {
     setTimer(0);
     setTimerPenalty(0);
     setIsTimerRunning(false);
-    setGameStarted(true);
-  }, [generateRandomDots, score.rounds]);
+  };
 
   const proceedToNextRound = () => {
     setShowingAnswer(false);
@@ -199,26 +208,25 @@ const CentroidGame = () => {
     if (!userGuess || !actualCentroid) return;
     
     const nearestGridPoint = findNearestGridPoint(actualCentroid);
-    const moves = calculateManhattanDistance(userGuess, nearestGridPoint);
-    const totalRoundScore = moves + timerPenalty;
+    const distance = calculateManhattanDistance(userGuess, nearestGridPoint);
+    const totalScore = distance + timerPenalty;
     
-    setCurrentRoundScore(totalRoundScore);
+    setCurrentRoundScore(totalScore);
     setScore(prev => ({
-      totalMoves: prev.totalMoves + totalRoundScore,
+      totalMoves: prev.totalMoves + totalScore,
       rounds: prev.rounds + 1
     }));
-    
     setShowResult(true);
     setIsTimerRunning(false);
   };
 
   const resetGame = () => {
+    setDots([]);
+    setUserGuess(null);
+    setActualCentroid(null);
+    setShowResult(false);
     setScore({ totalMoves: 0, rounds: 0 });
     setGameStarted(false);
-    setShowResult(false);
-    setUserGuess(null);
-    setDots([]);
-    setActualCentroid(null);
     setCurrentRoundScore(null);
     setShowingAnswer(false);
     setShowExplanation(false);
@@ -227,25 +235,10 @@ const CentroidGame = () => {
     setIsTimerRunning(false);
   };
 
-  useEffect(() => {
-    if (gameStarted && !showResult && !showingAnswer) {
-      startNewRound();
-    }
-  }, [gameStarted, startNewRound]);
-
-  // Handle numDots changes only when game hasn't started
-  useEffect(() => {
-    if (!gameStarted) {
-      const newDots = generateRandomDots(1);
-      setDots(newDots);
-      setActualCentroid(calculateCentroid(newDots));
-    }
-  }, [numDots, gameStarted, generateRandomDots]);
-
   const getCurrentDifficulty = () => {
-    const currentRound = score.rounds + 1;
-    if (currentRound <= 3) return { name: "Easy", color: "text-green-600" };
-    if (currentRound <= 6) return { name: "Medium", color: "text-yellow-600" };
+    const round = score.rounds + 1;
+    if (round <= 3) return { name: "Easy", color: "text-green-600" };
+    if (round <= 6) return { name: "Medium", color: "text-yellow-600" };
     return { name: "Hard", color: "text-red-600" };
   };
 
@@ -261,70 +254,73 @@ const CentroidGame = () => {
   };
 
   const renderGrid = () => {
-    const grid = [];
-    
+    const cells = [];
     for (let y = 0; y < GRID_SIZE; y++) {
       for (let x = 0; x < GRID_SIZE; x++) {
-        const hasDot = dots.some(dot => dot.x === x && dot.y === y);
+        const isDot = dots.some(dot => dot.x === x && dot.y === y);
         const isUserGuess = userGuess && userGuess.x === x && userGuess.y === y;
-        const isActualCentroid = (showResult || showingAnswer) && actualCentroid && 
-          Math.abs(Math.round(actualCentroid.x) - x) === 0 && Math.abs(Math.round(actualCentroid.y) - y) === 0;
+        const isActualCentroid = actualCentroid && 
+          Math.round(actualCentroid.x) === x && 
+          Math.round(actualCentroid.y) === y;
         
-        let cellClass = "w-5 h-5 border border-gray-300 cursor-pointer hover:bg-gray-100 ";
+        let cellClass = "border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors";
+        let cellContent = null;
         
-        if (hasDot) {
-          cellClass += "bg-blue-600 hover:bg-blue-700 ";
-        } else if (isUserGuess && !showResult && !showingAnswer) {
-          cellClass += "bg-red-400 hover:bg-red-500 ";
-        } else if (isUserGuess && (showResult || showingAnswer)) {
-          cellClass += "bg-red-500 ";
+        if (isDot) {
+          cellClass += " bg-blue-500 border-blue-600";
+          cellContent = <div className="w-full h-full bg-blue-500 rounded-sm"></div>;
+        } else if (isUserGuess && showResult) {
+          cellClass += " bg-red-500 border-red-600";
+          cellContent = <div className="w-full h-full bg-red-500 rounded-sm"></div>;
+        } else if (isActualCentroid && showResult) {
+          cellClass += " bg-green-500 border-green-600";
+          cellContent = <div className="w-full h-full bg-green-500 rounded-sm"></div>;
+        } else if (isUserGuess && !showResult) {
+          cellClass += " bg-orange-400 border-orange-500";
+          cellContent = <div className="w-full h-full bg-orange-400 rounded-sm"></div>;
         }
         
-        if (isActualCentroid) {
-          cellClass += "bg-green-500 ";
-        }
-        
-        grid.push(
+        cells.push(
           <div
             key={`${x}-${y}`}
             className={cellClass}
             onClick={() => handleCellClick(x, y)}
-            style={{
-              gridColumn: x + 1,
-              gridRow: y + 1,
-            }}
-          />
+          >
+            {cellContent}
+          </div>
         );
       }
     }
-    
-    return grid;
+    return cells;
   };
 
   const renderVectors = () => {
-    if ((!showResult && !showingAnswer) || !actualCentroid) return null;
+    if (!actualCentroid || !showResult) return null;
     
     const nearestGridPoint = findNearestGridPoint(actualCentroid);
+    const vectors = [];
     
-    return dots.map((dot, index) => {
-      const startX = (dot.x + 0.5) * CELL_SIZE;
-      const startY = (dot.y + 0.5) * CELL_SIZE;
-      const endX = (nearestGridPoint.x + 0.5) * CELL_SIZE;
-      const endY = (nearestGridPoint.y + 0.5) * CELL_SIZE;
+    dots.forEach((dot, index) => {
+      const startX = dot.x * CELL_SIZE + CELL_SIZE / 2;
+      const startY = dot.y * CELL_SIZE + CELL_SIZE / 2;
+      const endX = nearestGridPoint.x * CELL_SIZE + CELL_SIZE / 2;
+      const endY = nearestGridPoint.y * CELL_SIZE + CELL_SIZE / 2;
       
-      return (
+      vectors.push(
         <line
-          key={index}
+          key={`vector-${index}`}
           x1={startX}
           y1={startY}
           x2={endX}
           y2={endY}
-          stroke="#10b981"
+          stroke="green"
           strokeWidth="1"
           opacity="0.6"
         />
       );
     });
+    
+    return vectors;
   };
 
   const getCentroidExplanation = () => {
@@ -332,17 +328,20 @@ const CentroidGame = () => {
     
     const sumX = dots.reduce((sum, dot) => sum + dot.x, 0);
     const sumY = dots.reduce((sum, dot) => sum + dot.y, 0);
+    const count = dots.length;
+    const avgX = sumX / count;
+    const avgY = sumY / count;
     const nearestGridPoint = findNearestGridPoint(actualCentroid);
     
     return {
-      exactCentroid: { x: actualCentroid.x.toFixed(2), y: actualCentroid.y.toFixed(2) },
-      nearestGridPoint: nearestGridPoint,
+      exactCentroid: { x: avgX.toFixed(2), y: avgY.toFixed(2) },
+      nearestGridPoint,
       calculation: {
+        count,
         sumX,
         sumY,
-        count: dots.length,
-        avgX: (sumX / dots.length).toFixed(2),
-        avgY: (sumY / dots.length).toFixed(2)
+        avgX: avgX.toFixed(2),
+        avgY: avgY.toFixed(2)
       }
     };
   };
@@ -352,125 +351,42 @@ const CentroidGame = () => {
   const explanation = getCentroidExplanation();
 
   return (
-    <div className="flex flex-col items-center p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Centroid Matrix Game</h1>
-      
-      <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-        <div className="flex items-center gap-6 mb-4">
-          <div className="flex items-center gap-4">
-            {gameStarted && (
-              <div className="flex items-center gap-2">
-                <TrendingUp className="text-gray-600" size={16} />
-                <span className="text-sm font-medium text-gray-700">Difficulty:</span>
-                <span className={`text-sm font-bold ${getCurrentDifficulty().color}`}>
-                  {getCurrentDifficulty().name}
-                </span>
-                <span className="text-xs text-gray-500">
-                  (Round {score.rounds + 1}/{MAX_ROUNDS})
-                </span>
-              </div>
-            )}
-            
-            <div className="flex items-center gap-4">
-              <div className="text-sm">
-                <span className="font-medium">Round: </span>
-                <span className="text-blue-600">{score.rounds}</span>
-                <span className="text-gray-500">/{MAX_ROUNDS}</span>
-                {score.rounds > 0 && (
-                  <>
-                    <span className="text-gray-600 ml-3">Total Moves: </span>
-                    <span className="text-red-600 font-medium">{score.totalMoves}</span>
-                    <span className="text-gray-600 ml-2">(Avg: {averageScore})</span>
-                  </>
-                )}
-                {currentRoundScore !== null && (
-                  <span className="text-orange-600 ml-3 font-medium">
-                    This round: {currentRoundScore} moves
-                    {timerPenalty > 0 && (
-                      <span className="text-red-600"> (+{timerPenalty} time penalty)</span>
-                    )}
-                  </span>
-                )}
-              </div>
-              
-              <button
-                onClick={resetGame}
-                className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors"
-              >
-                <RotateCcw size={14} />
-                Reset
-              </button>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-2">
+      {/* Compact Timer at Top */}
+      {gameStarted && (
+        <div className="mb-2">
+          <div className="bg-white rounded-lg shadow px-3 py-1 flex items-center gap-2">
+            <Clock className="text-gray-600" size={14} />
+            <div className={`text-sm font-bold ${getTimerColor()}`}>
+              {formatTime(timer)}
             </div>
+            {timerPenalty > 0 && (
+              <div className="text-xs text-red-600">+{timerPenalty}</div>
+            )}
           </div>
         </div>
+      )}
 
-        <div className="text-sm text-gray-600 mb-4">
+      {/* Centered Header */}
+      <div className="text-center mb-3 max-w-[192px]">
+        <h1 className="text-lg font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
+        
+        {/* Compact game info */}
+        <div className="text-xs text-gray-600">
           {!gameStarted ? (
             <div>
-              <p className="mb-2">Goal: Complete {MAX_ROUNDS} rounds with the lowest total score. Lower scores are better!</p>
-              <div className="bg-blue-50 p-3 rounded-lg mb-3">
-                <p className="font-medium text-blue-800 mb-1">Scoring System:</p>
-                <ul className="text-xs text-blue-700 space-y-1">
-                  <li>• <span className="font-medium">Distance penalty:</span> Manhattan distance from your guess to optimal centroid</li>
-                  <li>• <span className="font-medium">Time penalty:</span> +1 point for each second after 3 seconds</li>
-                  <li>• <span className="font-medium">Total score:</span> Distance + Time penalties</li>
-                </ul>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="font-medium text-blue-800 mb-1">Difficulty Progression:</p>
-                <ul className="text-xs text-blue-700 space-y-1">
-                  <li>• <span className="font-medium">Rounds 1-3:</span> Easy (3-6 dots, no clustering)</li>
-                  <li>• <span className="font-medium">Rounds 4-6:</span> Medium (5-10 dots, light clustering)</li>
-                  <li>• <span className="font-medium">Rounds 7-10:</span> Hard (8-15 dots, strong clustering)</li>
-                </ul>
-              </div>
-            </div>
-          ) : isGameComplete ? (
-            <div className="text-center">
-              <div className="text-lg font-bold text-blue-600 mb-2">Game Complete!</div>
-              <div className="text-base">
-                Final Score: <span className="font-bold text-red-600">{score.totalMoves}</span> total points
-                <span className="text-gray-500"> (Average: {averageScore} points per round)</span>
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Lower scores are better! Try again to improve.</div>
-            </div>
-          ) : showingAnswer ? (
-            <div className="text-center">
-              <div className="text-lg font-bold text-green-600 mb-2">
-                Round {score.rounds} Solution
-              </div>
-              <div className="text-base">
-                Your total score was <span className="font-bold text-red-600">{currentRoundScore}</span> points
-                {timerPenalty > 0 && (
-                  <span className="text-red-600"> (including {timerPenalty} time penalty)</span>
-                )}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">
-                Study the solution below. Click "Next Round" when ready to continue.
-              </div>
-            </div>
-          ) : !userGuess ? (
-            <div>
-              <p>Round {score.rounds + 1}/{MAX_ROUNDS}: Click to estimate the centroid. Be quick - time penalties start after 3 seconds!</p>
-              <p className="text-xs text-gray-500 mt-1">
-                Current difficulty: <span className={`font-medium ${getCurrentDifficulty().color}`}>{getCurrentDifficulty().name}</span>
-                {getCurrentDifficulty().name !== "Easy" && " (dots may be clustered)"}
-              </p>
-            </div>
-          ) : !showResult ? (
-            <div>
-              <p>Click 'Validate' to see your score. Timer is running - each second after 3 adds a penalty point!</p>
-              {timer > TIMER_PENALTY_THRESHOLD && (
-                <p className="text-xs text-red-600 mt-1">
-                  ⚠️ Time penalty active: +{timerPenalty} points so far
-                </p>
-              )}
+              <p>Complete {MAX_ROUNDS} rounds</p>
+              <p>Lowest score wins</p>
             </div>
           ) : (
-            <div>
-              <span className="text-green-600 font-medium">Green square</span> = optimal centroid, 
-              <span className="text-red-600 font-medium ml-2">Red square</span> = your guess
-              {currentRoundScore === 0 && <span className="text-green-600 font-bold ml-2">Perfect!</span>}
+            <div className="flex justify-between items-center">
+              <span>R{score.rounds + 1}/{MAX_ROUNDS}</span>
+              <span className={`font-medium ${getCurrentDifficulty().color}`}>
+                {getCurrentDifficulty().name}
+              </span>
+              {score.rounds > 0 && (
+                <span className="text-red-600">T:{score.totalMoves}</span>
+              )}
             </div>
           )}
         </div>
@@ -478,187 +394,142 @@ const CentroidGame = () => {
 
       {!gameStarted ? (
         <button
-          onClick={() => setGameStarted(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          onClick={() => {
+            setGameStarted(true);
+            startNewRound();
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm"
         >
-          <Target size={20} />
+          <Target size={16} />
           Start Game
         </button>
       ) : (
-        <div className="flex flex-col lg:flex-row items-start gap-6">
-          {/* Timer Display - Left Side */}
-          {gameStarted && (
-            <div className="flex-shrink-0">
-              <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="text-gray-600" size={20} />
-                  <span className="text-sm font-medium text-gray-700">Timer</span>
-                </div>
-                <div className={`text-2xl font-bold ${getTimerColor()}`}>
-                  {formatTime(timer)}
-                </div>
-                {timerPenalty > 0 && (
-                  <div className="text-xs text-red-600 mt-1">
-                    +{timerPenalty} penalty points
-                  </div>
-                )}
-                {timer <= TIMER_PENALTY_THRESHOLD && (
-                  <div className="text-xs text-green-600 mt-1">
-                    No penalty yet
-                  </div>
-                )}
-              </div>
+        <div className="flex flex-col items-center space-y-2 max-w-[192px]">
+          {/* Grid - Maximum Size */}
+          <div className="relative bg-white rounded-lg shadow p-2">
+            <div
+              className="grid gap-0 border border-gray-400"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
+                gridTemplateRows: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
+                width: GRID_SIZE * CELL_SIZE,
+                height: GRID_SIZE * CELL_SIZE,
+              }}
+            >
+              {renderGrid()}
             </div>
-          )}
-
-          {/* Static Grid - Left Side */}
-          <div className="flex-shrink-0">
-            <div className="relative bg-white rounded-lg shadow-lg p-4">
-              <div
-                className="grid gap-0 border-2 border-gray-400"
-                style={{
-                  gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
-                  gridTemplateRows: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
-                }}
+            
+            {(showResult || showingAnswer) && (
+              <svg
+                className="absolute top-2 left-2 pointer-events-none"
+                width={GRID_SIZE * CELL_SIZE}
+                height={GRID_SIZE * CELL_SIZE}
               >
-                {renderGrid()}
-              </div>
-              
-              {(showResult || showingAnswer) && (
-                <svg
-                  className="absolute top-4 left-4 pointer-events-none"
-                  width={GRID_SIZE * CELL_SIZE}
-                  height={GRID_SIZE * CELL_SIZE}
-                >
-                  {renderVectors()}
-                </svg>
-              )}
-            </div>
+                {renderVectors()}
+              </svg>
+            )}
           </div>
 
-          {/* Action Panel - Right Side */}
-          <div className="flex flex-col gap-4 min-w-[300px]">
-            {/* Primary Action Buttons */}
-            {userGuess && !showResult && !showingAnswer && (
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <button
-                  onClick={validateGuess}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  <Check size={20} />
-                  Validate
-                </button>
+          {/* Compact Status Messages */}
+          <div className="text-xs text-gray-600 text-center w-full">
+            {!userGuess && gameStarted && !showResult && (
+              <p>Tap to estimate centroid</p>
+            )}
+            {userGuess && !showResult && (
+              <p>Click Validate</p>
+            )}
+            {showResult && (
+              <div>
+                <span className="text-green-600">Green</span> = optimal, 
+                <span className="text-red-600">Red</span> = guess
+                {currentRoundScore === 0 && <span className="text-green-600 font-bold">Perfect!</span>}
               </div>
+            )}
+            {currentRoundScore !== null && (
+              <div className="text-orange-600 font-medium">
+                Round: {currentRoundScore} pts
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="w-full space-y-1">
+            {userGuess && !showResult && !showingAnswer && (
+              <button
+                onClick={validateGuess}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
+              >
+                <Check size={12} />
+                Validate
+              </button>
             )}
 
             {showResult && score.rounds < MAX_ROUNDS && (
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <button
-                  onClick={proceedToNextRound}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                >
-                  <ArrowRight size={20} />
-                  Next Round ({score.rounds}/{MAX_ROUNDS})
-                </button>
-              </div>
+              <button
+                onClick={proceedToNextRound}
+                className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium transition-colors text-xs"
+              >
+                <ArrowRight size={12} />
+                Next Round
+              </button>
             )}
 
-            {/* Game Complete Button - Show after final round */}
             {showResult && isGameComplete && (
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <div className="text-center mb-3">
-                  <div className="text-lg font-bold text-blue-600">Game Complete!</div>
-                  <div className="text-sm text-gray-600">
-                    Final Score: <span className="font-bold text-red-600">{score.totalMoves}</span> moves
-                  </div>
+              <div className="bg-white rounded shadow p-2 text-center">
+                <div className="text-xs font-bold text-blue-600 mb-1">Complete!</div>
+                <div className="text-xs text-gray-600 mb-1">
+                  Score: <span className="font-bold text-red-600">{score.totalMoves}</span>
                 </div>
                 <button
                   onClick={resetGame}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
                 >
-                  <RotateCcw size={20} />
+                  <RotateCcw size={12} />
                   Play Again
                 </button>
               </div>
             )}
+          </div>
 
-            {/* Solution Explanation Panel */}
-            {showingAnswer && explanation && (
-              <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calculator className="text-green-600" size={20} />
-                  <h3 className="text-lg font-bold text-gray-800">Centroid Calculation</h3>
-                </div>
-                
-                <div className="space-y-4 mb-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-semibold text-blue-800 mb-2">Coordinates Summary</h4>
-                    <div className="text-sm space-y-1">
-                      <div><span className="font-medium">Total dots:</span> {explanation.calculation.count}</div>
-                      <div><span className="font-medium">Sum of X coordinates:</span> {explanation.calculation.sumX}</div>
-                      <div><span className="font-medium">Sum of Y coordinates:</span> {explanation.calculation.sumY}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h4 className="font-semibold text-green-800 mb-2">Centroid Results</h4>
-                    <div className="text-sm space-y-1">
-                      <div><span className="font-medium">Exact centroid:</span> ({explanation.exactCentroid.x}, {explanation.exactCentroid.y})</div>
-                      <div><span className="font-medium">Nearest grid point:</span> ({explanation.nearestGridPoint.x}, {explanation.nearestGridPoint.y})</div>
-                      <div><span className="font-medium">Your distance:</span> <span className="text-red-600 font-bold">{currentRoundScore} moves</span></div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="font-semibold text-gray-800 mb-2">Calculation Steps</h4>
-                  <div className="text-sm space-y-2">
-                    <div>1. <span className="font-medium">Average X:</span> {explanation.calculation.sumX} ÷ {explanation.calculation.count} = {explanation.calculation.avgX}</div>
-                    <div>2. <span className="font-medium">Average Y:</span> {explanation.calculation.sumY} ÷ {explanation.calculation.count} = {explanation.calculation.avgY}</div>
-                    <div>3. <span className="font-medium">Round to grid:</span> ({explanation.calculation.avgX}, {explanation.calculation.avgY}) → ({explanation.nearestGridPoint.x}, {explanation.nearestGridPoint.y})</div>
-                  </div>
-                </div>
-                
-                <div className="mt-4 p-3 bg-yellow-50 border-l-4 border-yellow-400">
-                  <div className="flex items-start gap-2">
-                    <Info className="text-yellow-600 mt-0.5" size={16} />
-                    <div className="text-sm text-yellow-800">
-                      <strong>Tip:</strong> The centroid is the "balance point" of all dots. 
-                      Each green line shows the distance from a dot to the optimal centroid. 
-                      Your goal is to minimize the total distance from your guess to the optimal point.
-                    </div>
-                  </div>
-                </div>
+          {/* Optional View Solution */}
+          {showResult && !showingAnswer && (
+            <div className="text-center">
+              <button
+                onClick={showAnswer}
+                className="text-xs text-gray-500 underline hover:text-gray-700"
+              >
+                View solution (optional)
+              </button>
+            </div>
+          )}
+
+          {/* Compact Solution Display */}
+          {showingAnswer && explanation && (
+            <div className="bg-white rounded shadow p-2 text-xs w-full">
+              <div className="font-bold text-gray-800 mb-1">Calculation</div>
+              <div className="space-y-0.5 text-gray-600">
+                <div>Dots: {explanation.calculation.count}</div>
+                <div>Sum: ({explanation.calculation.sumX}, {explanation.calculation.sumY})</div>
+                <div>Avg: ({explanation.calculation.avgX}, {explanation.calculation.avgY})</div>
+                <div>Grid: ({explanation.nearestGridPoint.x}, {explanation.nearestGridPoint.y})</div>
+                <div className="text-red-600 font-medium">Distance: {currentRoundScore}</div>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* Optional View Detailed Solution Section - Bottom of page */}
-      {showResult && !showingAnswer && (
-        <div className="mt-8 bg-gray-50 rounded-lg p-6 border border-gray-200">
+          {/* Reset Button */}
           <div className="text-center">
-            <p className="text-sm text-gray-600 mb-3">Want to learn more about the calculation?</p>
             <button
-              onClick={showAnswer}
-              className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors mx-auto"
+              onClick={resetGame}
+              className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded transition-colors mx-auto"
             >
-              <Target size={18} />
-              View Detailed Solution
+              <RotateCcw size={10} />
+              Reset
             </button>
-            <p className="text-xs text-gray-500 mt-2">
-              Optional - you can continue without viewing details
-            </p>
           </div>
         </div>
       )}
-
-      <div className="mt-6 text-xs text-gray-500 max-w-md text-center">
-        <p><strong>How to play:</strong> Complete {MAX_ROUNDS} rounds estimating centroids. 
-        Your score is the total number of grid moves needed to reach the optimal centroid from your guesses. 
-        <strong>Lower scores are better!</strong> The green lines show distances from each dot to the optimal grid point.</p>
-      </div>
     </div>
   );
 };
