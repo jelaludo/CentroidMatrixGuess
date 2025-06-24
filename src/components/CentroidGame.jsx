@@ -862,20 +862,21 @@ const CentroidGame = () => {
               </div>
             </div>
             
-            {/* Simple Histogram */}
+            {/* Emoji Histogram: stack ◽️ for each instance */}
             <div className="mb-4">
               <h3 className="text-sm font-bold text-gray-800 mb-2">Score Distribution</h3>
-              <div className="flex items-end gap-1 h-8">
+              <div className="flex items-end gap-1 h-24">
                 {Array.from({ length: 10 }, (_, i) => {
                   const count = roundHistory.filter(r => r.score === i).length;
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center">
+                    <div key={i} className="flex-1 flex flex-col-reverse items-center h-24 justify-end">
+                      {/* Stack ◽️ for each instance */}
                       {count > 0 ? (
-                        <div className="w-3 h-4 bg-blue-500 rounded-t mb-1" />
+                        Array.from({ length: count }).map((_, idx) => (
+                          <span key={idx} className="text-2xl leading-none">◽️</span>
+                        ))
                       ) : (
-                        <div className="w-3 h-4 flex items-end justify-center mb-1">
-                          <span className="text-gray-400 text-lg leading-none">-</span>
-                        </div>
+                        <span className="text-gray-400 text-lg leading-none">-</span>
                       )}
                       <span className="text-xs text-gray-500 mt-0.5">{i}</span>
                     </div>
