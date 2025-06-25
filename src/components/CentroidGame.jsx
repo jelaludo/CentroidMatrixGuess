@@ -72,8 +72,8 @@ const CentroidGame = () => {
   ];
 
   // Mobile-optimized grid size
-  const GRID_SIZE = 12; // Reduced from 20 for mobile
-  const CELL_SIZE = 16; // Reduced from 20 for mobile
+  const GRID_SIZE = 17; // 340px / 20px = 17
+  const CELL_SIZE = 20; // 340px / 17 = 20
   const MAX_ROUNDS = 10;
   const TIMER_PENALTY_THRESHOLD = 3; // Start adding penalty after 3 seconds
 
@@ -652,331 +652,232 @@ const CentroidGame = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-2">
-      {/* Top Bar: Reset (left), Timer (center) */}
-      <div className="w-full max-w-[320px] flex items-center justify-between mb-3">
-        {/* Reset Button (left) */}
-        <button
-          onClick={resetGame}
-          className="flex items-center gap-1 px-3 py-2 text-base bg-gray-200 hover:bg-gray-300 rounded font-medium transition-colors shadow"
-          style={{ minWidth: 80 }}
-        >
-          <RotateCcw size={18} />
-          Reset
-        </button>
-        {/* Timer (center) */}
-        {gameStarted && (
-          <div className="flex-1 flex justify-center">
-            <div className="bg-white rounded-lg shadow px-4 py-2 flex items-center gap-2">
-              <Clock className="text-gray-600" size={18} />
-              <div className={`text-lg font-bold ${getTimerColor()}`}>{formatTime(timer)}</div>
-              {timerPenalty > 0 && (
-                <div className="text-base text-red-600">+{timerPenalty}</div>
-              )}
-            </div>
-          </div>
-        )}
-        {/* Spacer for right alignment */}
-        <div style={{ width: 80 }}></div>
-      </div>
-      {/* Persistent Header with Game Mode Selector */}
-      <div className="w-full max-w-[320px] mb-3">
-        <div className="bg-white rounded-lg shadow p-2">
-          <div className="flex gap-1">
-            <button
-              onClick={() => {
-                setGameMode('GRID');
-                resetGame();
-              }}
-              className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
-                gameMode === 'GRID' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              GRID
-            </button>
-            <button
-              onClick={() => {
-                setGameMode('DOTS');
-                resetGame();
-              }}
-              className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
-                gameMode === 'DOTS' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              DOTS
-            </button>
-            <button
-              onClick={() => {
-                setGameMode('FLOW');
-                resetGame();
-              }}
-              className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
-                gameMode === 'FLOW' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              FLOW
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Centered Header */}
-      <div className="text-center mb-3 max-w-[192px]">
-        {!gameStarted ? (
-          <>
-            <h1 className="text-lg font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
-            <div className="flex justify-between items-center text-xs text-gray-600 w-full">
-              <span>R0/{MAX_ROUNDS}</span>
-              <span className="font-medium">MODE</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 className="text-lg font-bold text-gray-800 mb-1">
-              {gameMode === 'GRID' ? 'Centroid Matrix Game' : gameMode === 'DOTS' ? 'Centroid Dots Game' : 'Centroid Flow Game'}
-            </h1>
-            <div className="flex justify-between items-center text-xs text-gray-600 w-full">
-              <span>R{score.rounds + 1}/{MAX_ROUNDS}</span>
-              <span className={`font-medium ${getCurrentDifficulty().color}`}>{getCurrentDifficulty().name}</span>
-              {score.rounds > 0 && (
-                <span className="text-red-600">T:{score.totalMoves}</span>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Main Play Area: Always render grid container for layout consistency */}
-      <div className="flex flex-col items-center space-y-2 max-w-[192px]">
-        {/* Fixed-height container above grid for header/instructions (if needed) */}
-        <div style={{ minHeight: 24 }}>
-          {/* No content above grid for now, but reserve space if needed in future */}
-        </div>
-        <div className="mb-2">
-          {gameMode === 'FLOW' ? (
-            renderFlow()
-          ) : gameMode === 'DOTS' ? (
-            <div
-              className="relative bg-black rounded-lg shadow"
-              style={{
-                width: GRID_SIZE * CELL_SIZE,
-                height: GRID_SIZE * CELL_SIZE,
-              }}
-            >
-              {/* Render pale blue dots */}
-              {dots.map((dot, index) => (
-                <div
-                  key={index}
-                  className="absolute bg-blue-300 rounded-full"
-                  style={{
-                    width: 10,
-                    height: 10,
-                    left: dot.x * CELL_SIZE + CELL_SIZE / 2 - 5,
-                    top: dot.y * CELL_SIZE + CELL_SIZE / 2 - 5,
-                  }}
-                />
-              ))}
-              {/* User's guess */}
-              {userGuess && (
-                <div
-                  className={`absolute rounded-full ${showResult ? 'bg-red-500' : 'bg-orange-400'}`}
-                  style={{
-                    width: 12,
-                    height: 12,
-                    left: userGuess.x * CELL_SIZE + CELL_SIZE / 2 - 6,
-                    top: userGuess.y * CELL_SIZE + CELL_SIZE / 2 - 6,
-                  }}
-                />
-              )}
-              {/* Actual centroid */}
-              {showResult && actualCentroid && (
-                <div
-                  className="absolute bg-green-500 rounded-full"
-                  style={{
-                    width: 12,
-                    height: 12,
-                    left: actualCentroid.x * CELL_SIZE + CELL_SIZE / 2 - 6,
-                    top: actualCentroid.y * CELL_SIZE + CELL_SIZE / 2 - 6,
-                  }}
-                />
-              )}
-              {/* Vectors overlay when showingAnswer */}
-              {showingAnswer && (
-                <svg
-                  className="absolute top-0 left-0 pointer-events-none"
-                  width={GRID_SIZE * CELL_SIZE}
-                  height={GRID_SIZE * CELL_SIZE}
-                >
-                  {dots.map((dot, index) => {
-                    const startX = dot.x * CELL_SIZE + CELL_SIZE / 2;
-                    const startY = dot.y * CELL_SIZE + CELL_SIZE / 2;
-                    const endX = actualCentroid.x * CELL_SIZE + CELL_SIZE / 2;
-                    const endY = actualCentroid.y * CELL_SIZE + CELL_SIZE / 2;
-                    return (
-                      <line
-                        key={index}
-                        x1={startX}
-                        y1={startY}
-                        x2={endX}
-                        y2={endY}
-                        stroke="green"
-                        strokeWidth="2"
-                        opacity="0.6"
-                      />
-                    );
-                  })}
-                </svg>
-              )}
-              {/* Clickable area for placing guess */}
-              <div
-                className="absolute inset-0 cursor-crosshair"
-                onClick={e => {
-                  if (showResult || showingAnswer) return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
-                  const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
-                  if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
-                    setUserGuess({ x, y });
-                  }
-                }}
-              />
-            </div>
-          ) : (
-            <div
-              className="relative grid gap-0 border border-gray-400 bg-white rounded-lg shadow"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
-                gridTemplateRows: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
-                width: GRID_SIZE * CELL_SIZE,
-                height: GRID_SIZE * CELL_SIZE,
-              }}
-            >
-              {gameStarted ? renderGrid() : Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => (
-                <div key={i} className="border border-gray-200 bg-white" />
-              ))}
-              {/* Vectors overlay when showingAnswer for GRID */}
-              {showingAnswer && (
-                <svg
-                  className="absolute top-0 left-0 pointer-events-none"
-                  width={GRID_SIZE * CELL_SIZE}
-                  height={GRID_SIZE * CELL_SIZE}
-                >
-                  {dots.map((dot, index) => {
-                    const startX = dot.x * CELL_SIZE + CELL_SIZE / 2;
-                    const startY = dot.y * CELL_SIZE + CELL_SIZE / 2;
-                    const nearestGridPoint = findNearestGridPoint(actualCentroid);
-                    const endX = nearestGridPoint.x * CELL_SIZE + CELL_SIZE / 2;
-                    const endY = nearestGridPoint.y * CELL_SIZE + CELL_SIZE / 2;
-                    return (
-                      <line
-                        key={index}
-                        x1={startX}
-                        y1={startY}
-                        x2={endX}
-                        y2={endY}
-                        stroke="green"
-                        strokeWidth="2"
-                        opacity="0.6"
-                      />
-                    );
-                  })}
-                </svg>
-              )}
-            </div>
-          )}
-        </div>
-        {/* Fixed-height container below grid for info/legend/score/calc details */}
-        <div style={{ minHeight: 110, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center' }}>
-          {/* Show correct info based on state, but always reserve space */}
-          {gameStarted && !showResult && !showingAnswer && (
-            <div className="text-center mt-2 text-xs text-gray-500" style={{ minHeight: 22 }}>Find the Centroid!</div>
-          )}
-          {showingAnswer && (gameMode === 'GRID' || gameMode === 'DOTS') && explanation && (
-            <>
-              <div className="text-center mt-2" style={{ minHeight: 22 }}>
-                <span className="text-green-600 font-bold">Green</span>
-                <span className="text-gray-600"> = optimal, </span>
-                <span className="text-red-600 font-bold">Red</span>
-                <span className="text-gray-600"> = guess</span>
-                <div className="font-medium mt-1 text-orange-600 text-lg">Round: {currentRoundScore} pts</div>
-              </div>
-              <div className="text-center mt-2" style={{ minHeight: 22 }}>
-                {!showCalcDetails ? (
-                  <button
-                    className="text-xs text-gray-500 underline hover:text-gray-700"
-                    onClick={() => setShowCalcDetails(true)}
-                  >
-                    Show Calculation Details
-                  </button>
-                ) : (
-                  <>
-                    <div className="bg-white rounded shadow p-2 text-xs w-full mt-2 inline-block">
-                      <div className="font-bold text-gray-800 mb-1">Calculation</div>
-                      <div className="space-y-0.5 text-gray-600">
-                        <div>Dots: {explanation.calculation.count}</div>
-                        <div>Sum: ({explanation.calculation.sumX}, {explanation.calculation.sumY})</div>
-                        <div>Avg: ({explanation.calculation.avgX}, {explanation.calculation.avgY})</div>
-                        <div>Grid: ({explanation.nearestGridPoint.x}, {explanation.nearestGridPoint.y})</div>
-                        <div className="text-red-600 font-medium">Distance: {currentRoundScore}</div>
-                      </div>
-                    </div>
-                    <div>
-                      <button
-                        className="text-xs text-gray-500 underline hover:text-gray-700 mt-1"
-                        onClick={() => setShowCalcDetails(false)}
-                      >
-                        Hide Calculation Details
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-          {/* If nothing to show, render an empty div to reserve space */}
-          {!showingAnswer && (!gameStarted || showResult) && (
-            <div style={{ minHeight: 22, visibility: 'hidden' }}>placeholder</div>
-          )}
-        </div>
-        {/* Only show title on initial screen, no duplicate below grid */}
-        {!gameStarted && (
-          <>
-            <div className="w-full space-y-1">
+      {/* Main container: fixed large width */}
+      <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
+        {/* Top Bar: Mode Selector (full width) */}
+        <div className="w-full mb-3">
+          <div className="bg-white rounded-lg shadow p-2 w-full">
+            <div className="flex gap-1 w-full">
               <button
-                onClick={() => { setGameStarted(true); startNewRound(); }}
-                className="w-full flex items-center justify-center gap-2 px-0 py-0 rounded-xl font-bold transition-colors text-lg h-16 min-h-[64px] min-w-[64px] shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  setGameMode('GRID');
+                  resetGame();
+                }}
+                className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                  gameMode === 'GRID'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
               >
-                <Target size={28} />
-                START Game
+                GRID
+              </button>
+              <button
+                onClick={() => {
+                  setGameMode('DOTS');
+                  resetGame();
+                }}
+                className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                  gameMode === 'DOTS'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                DOTS
+              </button>
+              <button
+                onClick={() => {
+                  setGameMode('FLOW');
+                  resetGame();
+                }}
+                className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                  gameMode === 'FLOW'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                FLOW
               </button>
             </div>
-          </>
-        )}
-        {/* Main Button and View Solution logic for in-game */}
-        {gameStarted && (
-          <div className="w-full space-y-1">
+          </div>
+        </div>
+        {/* Header: Title, subtitle, round/difficulty/timer */}
+        <div className="w-full text-center mb-2">
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
+          <div className="text-base text-gray-500 mb-1">10 rounds - Lowest Score Wins</div>
+          <div className="flex justify-between items-center text-xs text-gray-600 w-full mb-1">
+            <span>R{gameStarted ? score.rounds + 1 : 0}/{MAX_ROUNDS}</span>
+            <span className={`font-medium ${getCurrentDifficulty().color}`}>{gameStarted ? getCurrentDifficulty().name : 'MODE'}</span>
+            {gameStarted && (
+              <span className="text-red-600">T:{score.totalMoves}</span>
+            )}
+          </div>
+        </div>
+        {/* Large, fixed play area (always same size/position) */}
+        <div className="flex flex-col items-center w-full" style={{ width: 340 }}>
+          <div className="mb-2" style={{ position: 'relative', width: 340, height: 340 }}>
+            {/* Perfect Guess Celebration Animation for GRID and DOTS */}
+            {(gameMode === 'GRID' || gameMode === 'DOTS') && perfectGuess && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                <div className="text-3xl font-bold text-yellow-500 animate-bounce drop-shadow-lg select-none">
+                  ✨
+                </div>
+              </div>
+            )}
+            {gameMode === 'FLOW' ? (
+              <div style={{ width: 340, height: 340 }}>{renderFlow()}</div>
+            ) : gameMode === 'DOTS' ? (
+              <div
+                className="relative bg-black rounded-lg shadow"
+                style={{ width: 340, height: 340 }}
+              >
+                {/* Render pale blue dots */}
+                {dots.map((dot, index) => (
+                  <div
+                    key={index}
+                    className="absolute bg-blue-300 rounded-full"
+                    style={{
+                      width: 10,
+                      height: 10,
+                      left: dot.x * CELL_SIZE + CELL_SIZE / 2 - 5,
+                      top: dot.y * CELL_SIZE + CELL_SIZE / 2 - 5,
+                    }}
+                  />
+                ))}
+                {/* User's guess */}
+                {userGuess && (
+                  <div
+                    className={`absolute rounded-full ${showResult ? 'bg-red-500' : 'bg-orange-400'}`}
+                    style={{
+                      width: 12,
+                      height: 12,
+                      left: userGuess.x * CELL_SIZE + CELL_SIZE / 2 - 6,
+                      top: userGuess.y * CELL_SIZE + CELL_SIZE / 2 - 6,
+                    }}
+                  />
+                )}
+                {/* Actual centroid */}
+                {showResult && actualCentroid && (
+                  <div
+                    className="absolute bg-green-500 rounded-full"
+                    style={{
+                      width: 12,
+                      height: 12,
+                      left: actualCentroid.x * CELL_SIZE + CELL_SIZE / 2 - 6,
+                      top: actualCentroid.y * CELL_SIZE + CELL_SIZE / 2 - 6,
+                    }}
+                  />
+                )}
+                {/* Vectors overlay when showingAnswer */}
+                {showingAnswer && (
+                  <svg
+                    className="absolute top-0 left-0 pointer-events-none"
+                    width={GRID_SIZE * CELL_SIZE}
+                    height={GRID_SIZE * CELL_SIZE}
+                  >
+                    {dots.map((dot, index) => {
+                      const startX = dot.x * CELL_SIZE + CELL_SIZE / 2;
+                      const startY = dot.y * CELL_SIZE + CELL_SIZE / 2;
+                      const endX = actualCentroid.x * CELL_SIZE + CELL_SIZE / 2;
+                      const endY = actualCentroid.y * CELL_SIZE + CELL_SIZE / 2;
+                      return (
+                        <line
+                          key={index}
+                          x1={startX}
+                          y1={startY}
+                          x2={endX}
+                          y2={endY}
+                          stroke="green"
+                          strokeWidth="2"
+                          opacity="0.6"
+                        />
+                      );
+                    })}
+                  </svg>
+                )}
+                {/* Clickable area for placing guess */}
+                <div
+                  className="absolute inset-0 cursor-crosshair"
+                  onClick={e => {
+                    if (showResult || showingAnswer) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.floor((e.clientX - rect.left) / CELL_SIZE);
+                    const y = Math.floor((e.clientY - rect.top) / CELL_SIZE);
+                    if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE) {
+                      setUserGuess({ x, y });
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                className="relative grid gap-0 border border-gray-400 bg-white rounded-lg shadow"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
+                  gridTemplateRows: `repeat(${GRID_SIZE}, ${CELL_SIZE}px)`,
+                  width: 340,
+                  height: 340,
+                }}
+              >
+                {gameStarted ? renderGrid() : Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => (
+                  <div key={i} className="border border-gray-200 bg-white" />
+                ))}
+                {/* Vectors overlay when showingAnswer for GRID */}
+                {showingAnswer && (
+                  <svg
+                    className="absolute top-0 left-0 pointer-events-none"
+                    width={GRID_SIZE * CELL_SIZE}
+                    height={GRID_SIZE * CELL_SIZE}
+                  >
+                    {dots.map((dot, index) => {
+                      const startX = dot.x * CELL_SIZE + CELL_SIZE / 2;
+                      const startY = dot.y * CELL_SIZE + CELL_SIZE / 2;
+                      const nearestGridPoint = findNearestGridPoint(actualCentroid);
+                      const endX = nearestGridPoint.x * CELL_SIZE + CELL_SIZE / 2;
+                      const endY = nearestGridPoint.y * CELL_SIZE + CELL_SIZE / 2;
+                      return (
+                        <line
+                          key={index}
+                          x1={startX}
+                          y1={startY}
+                          x2={endX}
+                          y2={endY}
+                          stroke="green"
+                          strokeWidth="2"
+                          opacity="0.6"
+                        />
+                      );
+                    })}
+                  </svg>
+                )}
+              </div>
+            )}
+          </div>
+          {/* Large, fixed button below play area */}
+          <div className="w-full mb-2">
             <button
               onClick={
+                !gameStarted ? () => { setGameStarted(true); startNewRound(); } :
                 userGuess && !showResult && !showingAnswer ? validateGuess :
                 showResult && score.rounds < MAX_ROUNDS ? proceedToNextRound :
                 undefined
               }
               disabled={
-                !userGuess && !showResult ||
-                userGuess && (showResult || showingAnswer) && score.rounds >= MAX_ROUNDS
+                gameStarted && !userGuess && !showResult ||
+                gameStarted && userGuess && (showResult || showingAnswer) && score.rounds >= MAX_ROUNDS
               }
-              className={`w-full flex items-center justify-center gap-2 px-0 py-0 rounded-xl font-bold transition-colors text-lg h-16 min-h-[64px] min-w-[64px] shadow-lg
-                ${userGuess && !showResult && !showingAnswer ? 'bg-green-600 hover:bg-green-700 text-white' :
+              className={`w-full flex items-center justify-center gap-2 px-0 py-0 rounded-xl font-bold transition-colors text-xl h-16 min-h-[64px] min-w-[64px] shadow-lg
+                ${!gameStarted ? 'bg-blue-600 hover:bg-blue-700 text-white' :
+                  userGuess && !showResult && !showingAnswer ? 'bg-green-600 hover:bg-green-700 text-white' :
                   showResult && score.rounds < MAX_ROUNDS ? 'bg-blue-600 hover:bg-blue-700 text-white' :
                   'bg-orange-500 hover:bg-orange-600 text-white'}`}
             >
-              {userGuess && !showResult && !showingAnswer ? (
+              {!gameStarted ? (
+                <>
+                  <Target size={28} />
+                  START Game
+                </>
+              ) : userGuess && !showResult && !showingAnswer ? (
                 <>
                   <Check size={28} />
                   VALIDATE
@@ -993,24 +894,65 @@ const CentroidGame = () => {
                 </>
               )}
             </button>
-            {/* Game Complete Display */}
-            {showResult && score.rounds >= MAX_ROUNDS && (
-              <div className="bg-white rounded shadow p-2 text-center">
-                <div className="text-xs font-bold text-blue-600 mb-1">Complete!</div>
-                <div className="text-xs text-gray-600 mb-1">
-                  Score: <span className="font-bold text-red-600">{score.totalMoves}</span>
+          </div>
+          {/* Fixed-height info area below button */}
+          <div style={{ minHeight: 110, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center' }}>
+            {/* Show correct info based on state, but always reserve space */}
+            {gameStarted && !showResult && !showingAnswer && (
+              <div className="text-center mt-2 text-xs text-gray-500" style={{ minHeight: 22 }}>Find the Centroid!</div>
+            )}
+            {showingAnswer && (gameMode === 'GRID' || gameMode === 'DOTS') && explanation && (
+              <>
+                <div className="text-center mt-2" style={{ minHeight: 22 }}>
+                  <span className="text-green-600 font-bold">Green</span>
+                  <span className="text-gray-600"> = optimal, </span>
+                  <span className="text-red-600 font-bold">Red</span>
+                  <span className="text-gray-600"> = guess</span>
+                  <div className={`font-medium mt-1 text-orange-600 text-lg flex items-center justify-center gap-2 ${perfectGuess ? 'text-yellow-600 scale-110 animate-pulse' : ''}`}
+                    style={{ minHeight: 28 }}>
+                    Round: {currentRoundScore} pts
+                    {perfectGuess && <span className="text-yellow-500 font-bold text-lg animate-bounce ml-2">Perfect!</span>}
+                  </div>
                 </div>
-                <button
-                  onClick={resetGame}
-                  className="w-full flex items-center justify-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded font-medium transition-colors text-xs"
-                >
-                  <RotateCcw size={12} />
-                  Play Again
-                </button>
-              </div>
+                <div className="text-center mt-2" style={{ minHeight: 22 }}>
+                  {!showCalcDetails ? (
+                    <button
+                      className="text-xs text-gray-500 underline hover:text-gray-700"
+                      onClick={() => setShowCalcDetails(true)}
+                    >
+                      Show Calculation Details
+                    </button>
+                  ) : (
+                    <>
+                      <div className="bg-white rounded shadow p-2 text-xs w-full mt-2 inline-block">
+                        <div className="font-bold text-gray-800 mb-1">Calculation</div>
+                        <div className="space-y-0.5 text-gray-600">
+                          <div>Dots: {explanation.calculation.count}</div>
+                          <div>Sum: ({explanation.calculation.sumX}, {explanation.calculation.sumY})</div>
+                          <div>Avg: ({explanation.calculation.avgX}, {explanation.calculation.avgY})</div>
+                          <div>Grid: ({explanation.nearestGridPoint.x}, {explanation.nearestGridPoint.y})</div>
+                          <div className="text-red-600 font-medium">Distance: {currentRoundScore}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <button
+                          className="text-xs text-gray-500 underline hover:text-gray-700 mt-1"
+                          onClick={() => setShowCalcDetails(false)}
+                        >
+                          Hide Calculation Details
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+            {/* If nothing to show, render an empty div to reserve space */}
+            {!showingAnswer && (!gameStarted || showResult) && (
+              <div style={{ minHeight: 22, visibility: 'hidden' }}>placeholder</div>
             )}
           </div>
-        )}
+        </div>
       </div>
       
       {/* Recap Screen */}
