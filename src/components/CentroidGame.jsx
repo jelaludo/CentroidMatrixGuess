@@ -661,7 +661,7 @@ const CentroidGame = () => {
               <button
                 onClick={() => {
                   setGameMode('GRID');
-                  resetGame();
+                  setTimeout(() => resetGame(), 0);
                 }}
                 className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
                   gameMode === 'GRID'
@@ -674,7 +674,7 @@ const CentroidGame = () => {
               <button
                 onClick={() => {
                   setGameMode('DOTS');
-                  resetGame();
+                  setTimeout(() => resetGame(), 0);
                 }}
                 className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
                   gameMode === 'DOTS'
@@ -687,7 +687,7 @@ const CentroidGame = () => {
               <button
                 onClick={() => {
                   setGameMode('FLOW');
-                  resetGame();
+                  setTimeout(() => resetGame(), 0);
                 }}
                 className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
                   gameMode === 'FLOW'
@@ -703,7 +703,21 @@ const CentroidGame = () => {
         {/* Header: Title, subtitle, round/difficulty/timer */}
         <div className="w-full text-center mb-2">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
-          <div className="text-base text-gray-500 mb-1">10 rounds - Lowest Score Wins</div>
+          <div className="flex items-center justify-center mb-1">
+            {/* Timer (small, left) */}
+            {gameStarted && (
+              <div className="flex items-center gap-1 mr-2 text-xs text-gray-500">
+                <Clock className="text-gray-500" size={14} />
+                <span className={`font-bold ${getTimerColor()}`}>{formatTime(timer)}</span>
+                {timerPenalty > 0 && (
+                  <span className="text-xs text-red-600">+{timerPenalty}</span>
+                )}
+              </div>
+            )}
+            <span className="text-base text-gray-500">10 rounds - Lowest Score Wins</span>
+          </div>
+          <div className="text-xs text-gray-400 mb-1">Be fast! under 3 seconds</div>
+          <div className="text-xs text-gray-400 mb-2">Breathe in between rounds</div>
           <div className="flex justify-between items-center text-xs text-gray-600 w-full mb-1">
             <span>R{gameStarted ? score.rounds + 1 : 0}/{MAX_ROUNDS}</span>
             <span className={`font-medium ${getCurrentDifficulty().color}`}>{gameStarted ? getCurrentDifficulty().name : 'MODE'}</span>
@@ -899,7 +913,7 @@ const CentroidGame = () => {
           <div style={{ minHeight: 110, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'center' }}>
             {/* Show correct info based on state, but always reserve space */}
             {gameStarted && !showResult && !showingAnswer && (
-              <div className="text-center mt-2 text-xs text-gray-500" style={{ minHeight: 22 }}>Find the Centroid!</div>
+              <div className="text-center mt-2 text-xs text-gray-500" style={{ minHeight: 22 }}>Find the Centroid! Trust your intuition</div>
             )}
             {showingAnswer && (gameMode === 'GRID' || gameMode === 'DOTS') && explanation && (
               <>
