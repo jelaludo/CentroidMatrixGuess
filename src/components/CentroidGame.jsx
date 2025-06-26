@@ -28,7 +28,49 @@ const CentroidGame = () => {
   const [showCalcDetails, setShowCalcDetails] = useState(false);
 
   // Congratulatory messages
-  const congratulatoryMessages = [
+  const messagesAbove25 = [
+    "Nice try, but you've got more in you! Push it!",
+    "Not bad, champ—now show us your best!",
+    "Solid effort, but you're just warming up! Go harder!",
+    "That's a start, now crank it up a notch!",
+    "Pretty good, but you're capable of greatness! Dig in!",
+    "Decent move, but you've got bigger plays to make!",
+    "Not too shabby, but let's see your A-game!",
+    "You're getting there—now unleash the beast!",
+    "Good hustle, but you're not at your peak yet!",
+    "That's the spirit, now take it to the next level!",
+    "Alright, but you're holding back! Let it rip!",
+    "Nice one, but I know you've got more fire!",
+    "You're on the board, now aim for the stars!",
+    "Not bad at all, but you're destined for better!",
+    "Solid, but you've got untapped potential—use it!",
+    "That's a good base, now build it bigger!",
+    "You're in the game, now dominate it!",
+    "Fair shot, but your best is still coming!",
+    "Getting there, but you're not done shining!",
+    "Okay, but you're made for epic—show it!"
+  ];
+  const messages8to9 = [
+    "Single Digit! Amazing!",
+    "Getting close to beating the Creator...",
+    "Jelaludo is proud, but you got to go sub 7",
+    "Just a few more perfect rounds... so close...",
+    "Impressive intuition.",
+    "Sub 10!"
+  ];
+  const messages7andBelow = [
+    "Unreal! You're so good, you outplayed the creator!",
+    "Epic! You just crushed it beyond the creator's dreams!",
+    "Wow, you're a legend—beat Gerald at his own game!",
+    "Insane skills! You've surpassed the creator's best!",
+    "Holy smokes, you're unstoppable—creator who?",
+    "Phenomenal! You just schooled the game's creator!",
+    "Mind-blowing! You've outdone the creator's wildest expectations!",
+    "You're a beast! Even the creator can't match that!",
+    "Incredible! You've topped the creator's masterpiece!",
+    "Absolute fire! You beat the creator with style!"
+  ];
+  const messages10to25 = [
     "🎉 Amazing work! You've mastered the centroid challenge!",
     "🌟 Outstanding performance! Your spatial reasoning is top-notch!",
     "🏆 Brilliant! You've conquered the centroid matrix!",
@@ -70,6 +112,19 @@ const CentroidGame = () => {
     "Way to flex those skills!",
     "Dang, you're making us all proud!"
   ];
+
+  // Pick a message bucket based on final score
+  function getRecapMessage(finalScore) {
+    if (finalScore > 25) {
+      return messagesAbove25[Math.floor(Math.random() * messagesAbove25.length)];
+    } else if (finalScore >= 10) {
+      return messages10to25[Math.floor(Math.random() * messages10to25.length)];
+    } else if (finalScore >= 8) {
+      return messages8to9[Math.floor(Math.random() * messages8to9.length)];
+    } else {
+      return messages7andBelow[Math.floor(Math.random() * messages7andBelow.length)];
+    }
+  }
 
   // Mobile-optimized grid size
   const GRID_SIZE = 17; // 340px / 20px = 17
@@ -637,12 +692,12 @@ const CentroidGame = () => {
   );
 
   // Only show one congratulatory message
-  const [recapMessageIdx, setRecapMessageIdx] = useState(null);
+  const [recapMessage, setRecapMessage] = useState(null);
   useEffect(() => {
-    if (showRecap && recapMessageIdx === null) {
-      setRecapMessageIdx(Math.floor(Math.random() * congratulatoryMessages.length));
+    if (showRecap && recapMessage === null) {
+      setRecapMessage(getRecapMessage(score.totalMoves));
     }
-    if (!showRecap) setRecapMessageIdx(null);
+    if (!showRecap) setRecapMessage(null);
   }, [showRecap]);
 
   // Reset calculation details visibility on new round or reset
@@ -993,9 +1048,8 @@ const CentroidGame = () => {
               </button>
             </div>
             <div className="text-center mb-4">
-              {/* No 'Game Complete!' text */}
               <p className="text-sm text-gray-600 mb-3">
-                {recapMessageIdx !== null ? congratulatoryMessages[recapMessageIdx] : ''}
+                {recapMessage || ''}
               </p>
               <div className="text-lg font-bold text-blue-600">
                 Final Score: {score.totalMoves} points
