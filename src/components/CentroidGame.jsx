@@ -281,6 +281,10 @@ const CentroidGame = () => {
     return Math.sqrt(dx * dx + dy * dy);
   };
 
+  const calculateChebyshevDistance = (point1, point2) => {
+    return Math.max(Math.abs(point1.x - point2.x), Math.abs(point1.y - point2.y));
+  };
+
   const findNearestGridPoint = (centroid) => {
     return {
       x: Math.round(centroid.x),
@@ -331,7 +335,7 @@ const CentroidGame = () => {
       // GRID: integer guess, integer centroid
       const nearestGridPoint = findNearestGridPoint(actualCentroid);
       const intGuess = { x: Math.round(userGuess.x), y: Math.round(userGuess.y) };
-      distance = calculateManhattanDistance(intGuess, nearestGridPoint);
+      distance = calculateChebyshevDistance(intGuess, nearestGridPoint);
       totalScore = distance + timerPenalty;
     } else if (gameMode === 'DOTS') {
       // DOTS: integer guess, float centroid
@@ -431,24 +435,22 @@ const CentroidGame = () => {
         const isActualCentroid = actualCentroid && 
           Math.round(actualCentroid.x) === x && 
           Math.round(actualCentroid.y) === y;
-        
         let cellClass = "border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors";
         let cellContent = null;
-        
-        if (isDot) {
-          cellClass += " bg-blue-500 border-blue-600";
-          cellContent = <div className="w-full h-full bg-blue-500 rounded-sm"></div>;
-        } else if (isUserGuess && showResult) {
+        // User guess color takes precedence
+        if (isUserGuess && showResult) {
           cellClass += " bg-red-500 border-red-600";
           cellContent = <div className="w-full h-full bg-red-500 rounded-sm"></div>;
-        } else if (isActualCentroid && showResult) {
-          cellClass += " bg-green-500 border-green-600";
-          cellContent = <div className="w-full h-full bg-green-500 rounded-sm"></div>;
         } else if (isUserGuess && !showResult) {
           cellClass += " bg-orange-400 border-orange-500";
           cellContent = <div className="w-full h-full bg-orange-400 rounded-sm"></div>;
+        } else if (isActualCentroid && showResult) {
+          cellClass += " bg-green-500 border-green-600";
+          cellContent = <div className="w-full h-full bg-green-500 rounded-sm"></div>;
+        } else if (isDot) {
+          cellClass += " bg-blue-500 border-blue-600";
+          cellContent = <div className="w-full h-full bg-blue-500 rounded-sm"></div>;
         }
-        
         cells.push(
           <div
             key={`${x}-${y}`}
