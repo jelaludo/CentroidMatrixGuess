@@ -761,14 +761,12 @@ const CentroidGame = () => {
         <div className="w-full text-center mb-2">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
           <div className="flex items-center justify-center mb-1">
-            {/* Timer (small, left) */}
+            {/* Timer (large, 3 lines, left) */}
             {gameStarted && (
-              <div className="flex items-center gap-1 mr-2 text-xs text-gray-500">
-                <Clock className="text-gray-500" size={14} />
-                <span className={`font-bold ${getTimerColor()}`}>{formatTime(timer)}</span>
-                {timerPenalty > 0 && (
-                  <span className="text-xs text-red-600">+{timerPenalty}</span>
-                )}
+              <div className="flex flex-col items-center justify-center mr-4" style={{ minWidth: 60 }}>
+                <Clock className="text-gray-500 mb-0.5" size={22} />
+                <span className={`font-bold ${getTimerColor()} text-2xl leading-tight`} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTime(timer)}</span>
+                <span className="text-xs text-red-600 mt-0.5" style={{ minHeight: 16 }}>{timerPenalty > 0 ? `+${timerPenalty}` : ''}</span>
               </div>
             )}
             <span className="text-base text-gray-500">10 rounds - Lowest Score Wins</span>
