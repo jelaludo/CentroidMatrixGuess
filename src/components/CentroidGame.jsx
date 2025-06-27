@@ -16,7 +16,7 @@ const CentroidGame = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPenalty, setTimerPenalty] = useState(0);
   const [perfectGuess, setPerfectGuess] = useState(false);
-  const [gameMode, setGameMode] = useState('GRID'); // 'GRID' or 'DOTS' or 'FLOW'
+  const [gameMode, setGameMode] = useState('GRID'); // 'GRID', 'DOTS', 'FLOW', 'GRID2'
   const [roundHistory, setRoundHistory] = useState([]);
   const [showRecap, setShowRecap] = useState(false);
   const [flowDots, setFlowDots] = useState([]); // For FLOW mode: {x, y, vx, vy, phase, trail: [{x, y, t}]}
@@ -166,39 +166,66 @@ const CentroidGame = () => {
 
   // Difficulty configuration
   const getDifficultyConfig = (round) => {
-    const baseConfig = {
-      minDots: 3,
-      maxDots: 12, // Reduced for mobile
-      clusterBias: 0, // 0 = no clustering, 1 = strong clustering
-      clusterRadius: 3
-    };
-
-    if (round <= 3) {
-      // Early rounds: 3-5 dots, no clustering
-      return {
-        ...baseConfig,
+    if (gameMode === 'GRID2') {
+      if (round <= 3) {
+        // Hard
+        return {
+          minDots: 10,
+          maxDots: 16,
+          clusterBias: 0.7,
+          clusterRadius: 4
+        };
+      } else if (round <= 7) {
+        // Very Hard
+        return {
+          minDots: 14,
+          maxDots: 22,
+          clusterBias: 0.85,
+          clusterRadius: 5
+        };
+      } else {
+        // Insane
+        return {
+          minDots: 18,
+          maxDots: 28,
+          clusterBias: 0.95,
+          clusterRadius: 6
+        };
+      }
+    } else {
+      const baseConfig = {
         minDots: 3,
-        maxDots: 5,
-        clusterBias: 0
-      };
-    } else if (round <= 6) {
-      // Middle rounds: 4-8 dots, light clustering
-      return {
-        ...baseConfig,
-        minDots: 4,
-        maxDots: 8,
-        clusterBias: 0.3,
+        maxDots: 12, // Reduced for mobile
+        clusterBias: 0, // 0 = no clustering, 1 = strong clustering
         clusterRadius: 3
       };
-    } else {
-      // Later rounds: 6-12 dots, strong clustering
-      return {
-        ...baseConfig,
-        minDots: 6,
-        maxDots: 12,
-        clusterBias: 0.6,
-        clusterRadius: 4
-      };
+      if (round <= 3) {
+        // Early rounds: 3-5 dots, no clustering
+        return {
+          ...baseConfig,
+          minDots: 3,
+          maxDots: 5,
+          clusterBias: 0
+        };
+      } else if (round <= 6) {
+        // Middle rounds: 4-8 dots, light clustering
+        return {
+          ...baseConfig,
+          minDots: 4,
+          maxDots: 8,
+          clusterBias: 0.3,
+          clusterRadius: 3
+        };
+      } else {
+        // Later rounds: 6-12 dots, strong clustering
+        return {
+          ...baseConfig,
+          minDots: 6,
+          maxDots: 12,
+          clusterBias: 0.6,
+          clusterRadius: 4
+        };
+      }
     }
   };
 
@@ -331,8 +358,8 @@ const CentroidGame = () => {
   const validateGuess = () => {
     if (!userGuess || (!actualCentroid && gameMode !== 'FLOW')) return;
     let distance, totalScore;
-    if (gameMode === 'GRID') {
-      // GRID: integer guess, integer centroid
+    if (gameMode === 'GRID' || gameMode === 'GRID2') {
+      // GRID/GRID2: integer guess, integer centroid, Chebyshev distance
       const nearestGridPoint = findNearestGridPoint(actualCentroid);
       const intGuess = { x: Math.round(userGuess.x), y: Math.round(userGuess.y) };
       distance = calculateChebyshevDistance(intGuess, nearestGridPoint);
@@ -357,8 +384,9 @@ const CentroidGame = () => {
       score: totalScore,
       distance: distance,
       timerPenalty: timerPenalty,
+      timer: timer,
       difficulty: getCurrentDifficulty().name,
-      perfect: gameMode === 'GRID' ? distance === 0 : distance < 0.5
+      perfect: (gameMode === 'GRID' || gameMode === 'GRID2') ? distance === 0 : distance < 0.5
     };
     
     setCurrentRoundScore(totalScore);
@@ -380,8 +408,8 @@ const CentroidGame = () => {
       setTimeout(() => setPerfectGuess(false), 2000);
     }
     
-    // Show solution vectors automatically for GRID and DOTS
-    if (gameMode === 'GRID' || gameMode === 'DOTS') {
+    // Show solution vectors automatically for GRID, GRID2, and DOTS
+    if (gameMode === 'GRID' || gameMode === 'GRID2' || gameMode === 'DOTS') {
       setShowingAnswer(true);
     }
     // Show recap if this was the final round
@@ -410,9 +438,15 @@ const CentroidGame = () => {
 
   const getCurrentDifficulty = () => {
     const round = score.rounds + 1;
-    if (round <= 3) return { name: "Easy", color: "text-green-600" };
-    if (round <= 6) return { name: "Medium", color: "text-yellow-600" };
-    return { name: "Hard", color: "text-red-600" };
+    if (gameMode === 'GRID2') {
+      if (round <= 3) return { name: "Hard", color: "text-yellow-700" };
+      if (round <= 7) return { name: "Very Hard", color: "text-orange-600" };
+      return { name: "Insane", color: "text-red-700" };
+    } else {
+      if (round <= 3) return { name: "Easy", color: "text-green-600" };
+      if (round <= 6) return { name: "Medium", color: "text-yellow-600" };
+      return { name: "Hard", color: "text-red-600" };
+    }
   };
 
   const formatTime = (seconds) => {
@@ -740,6 +774,7 @@ const CentroidGame = () => {
                 }`}
               >
                 DOTS
+                <div className="text-[10px] opacity-70">experimental</div>
               </button>
               <button
                 onClick={() => {
@@ -753,6 +788,20 @@ const CentroidGame = () => {
                 }`}
               >
                 FLOW
+                <div className="text-[10px] opacity-70">experimental</div>
+              </button>
+              <button
+                onClick={() => {
+                  setGameMode('GRID2');
+                  setTimeout(() => resetGame(), 0);
+                }}
+                className={`flex-1 py-1 px-2 text-xs font-medium rounded transition-colors ${
+                  gameMode === 'GRID2'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                GRID HARD
               </button>
             </div>
           </div>
@@ -836,8 +885,8 @@ const CentroidGame = () => {
                     }}
                   />
                 )}
-                {/* Vectors overlay when showingAnswer */}
-                {showingAnswer && (
+                {/* Vectors overlay when showingAnswer for GRID and GRID2 */}
+                {showingAnswer && (gameMode === 'GRID' || gameMode === 'GRID2') && (
                   <svg
                     className="absolute top-0 left-0 pointer-events-none"
                     width={GRID_SIZE * CELL_SIZE}
@@ -846,8 +895,9 @@ const CentroidGame = () => {
                     {dots.map((dot, index) => {
                       const startX = dot.x * CELL_SIZE + CELL_SIZE / 2;
                       const startY = dot.y * CELL_SIZE + CELL_SIZE / 2;
-                      const endX = actualCentroid.x * CELL_SIZE + CELL_SIZE / 2;
-                      const endY = actualCentroid.y * CELL_SIZE + CELL_SIZE / 2;
+                      const nearestGridPoint = findNearestGridPoint(actualCentroid);
+                      const endX = nearestGridPoint.x * CELL_SIZE + CELL_SIZE / 2;
+                      const endY = nearestGridPoint.y * CELL_SIZE + CELL_SIZE / 2;
                       return (
                         <line
                           key={index}
@@ -891,8 +941,8 @@ const CentroidGame = () => {
                 {gameStarted ? renderGrid() : Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => (
                   <div key={i} className="border border-gray-200 bg-white" />
                 ))}
-                {/* Vectors overlay when showingAnswer for GRID */}
-                {showingAnswer && (
+                {/* Vectors overlay when showingAnswer for GRID and GRID2 */}
+                {showingAnswer && (gameMode === 'GRID' || gameMode === 'GRID2') && (
                   <svg
                     className="absolute top-0 left-0 pointer-events-none"
                     width={GRID_SIZE * CELL_SIZE}
@@ -970,7 +1020,7 @@ const CentroidGame = () => {
             {gameStarted && !showResult && !showingAnswer && (
               <div className="text-center mt-2 text-xs text-gray-500" style={{ minHeight: 22 }}>Find the Centroid! Trust your intuition</div>
             )}
-            {showingAnswer && (gameMode === 'GRID' || gameMode === 'DOTS') && explanation && (
+            {showingAnswer && ((gameMode === 'GRID' || gameMode === 'GRID2' || gameMode === 'DOTS') && explanation) && (
               <>
                 <div className="text-center mt-2" style={{ minHeight: 22 }}>
                   <span className="text-green-600 font-bold">Green</span>
@@ -1099,6 +1149,18 @@ const CentroidGame = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+            {/* Avg time per round metric */}
+            <div className="mb-4 text-xs text-gray-600">
+              <div className="flex justify-between">
+                <span>Avg time per round:</span>
+                <span className="font-medium">
+                  {roundHistory.length > 0 ?
+                    (roundHistory.reduce((sum, r) => sum + (r.timer || 0), 0) / roundHistory.length).toFixed(1)
+                    : '0.0'}
+                  s
+                </span>
               </div>
             </div>
           </div>
