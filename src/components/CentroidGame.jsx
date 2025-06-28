@@ -839,7 +839,7 @@ const CentroidGame = () => {
     const circledNumerals = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'];
     
     if (points === 0) {
-      displayText = '0';
+      displayText = '✨0✨';
       color = 'text-green-500';
     } else if (points === 1) {
       displayText = "①";
@@ -973,34 +973,40 @@ const CentroidGame = () => {
         {/* Header: Title, subtitle, round/difficulty/timer */}
         <div className="w-full text-center mb-2">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">Centroid (x̅, y̅) Game</h1>
-          <div className="flex items-center justify-center mb-1">
-            {/* Timer (large, 3 lines, left) */}
-            {gameStarted && (
-              <div className="flex flex-col items-center justify-center mr-4" style={{ minWidth: 60 }}>
-                <Clock className="text-gray-500 mb-0.5" size={22} />
-                <span className={`font-bold ${getTimerColor()} text-2xl leading-tight`} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTime(timer)}</span>
-                <span className="text-xs text-red-600 mt-0.5" style={{ minHeight: 16 }}>{timerPenalty > 0 ? `+${timerPenalty}` : ''}</span>
-              </div>
-            )}
-            <span className="text-base text-gray-500">10 rounds - Lowest Score Wins</span>
-          </div>
-          <div className="text-xs text-gray-400 mb-1">
-            {gameMode === 'GRIDFAST' ? 'Be fast! under 3 seconds' : 'Be fast! under 3 seconds'}
-          </div>
-          <div className="text-xs text-gray-400 mb-2">
-            {gameMode === 'GRIDFAST' ? 'Click a 2nd time to validate' : 'Breathe in between rounds'}
-          </div>
-          <div className="flex justify-between items-center text-xs text-gray-600 w-full mb-1">
-            <span>R{gameStarted ? Math.min(score.rounds + 1, MAX_ROUNDS) : 0}/{MAX_ROUNDS}</span>
-            <span className={`font-medium ${getCurrentDifficulty().color}`}>{gameStarted ? getCurrentDifficulty().name : 'MODE'}</span>
-            {gameStarted && (
-              <span className="text-red-600">T:{score.totalMoves}</span>
-            )}
-          </div>
+          <div className="text-sm text-gray-600 mb-2">セントロイド</div>
         </div>
+        
+        {/* Round/Difficulty/Timer display - appears during game */}
+        {gameStarted && (
+          <div className="flex justify-between items-center text-xs text-gray-600 w-full mb-2">
+            <span>R{Math.min(score.rounds + 1, MAX_ROUNDS)}/{MAX_ROUNDS}</span>
+            <div className="flex items-center gap-2">
+              <Clock className="text-gray-500" size={14} />
+              <span className={`font-bold ${getTimerColor()}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTime(timer)}</span>
+              {timerPenalty > 0 && <span className="text-red-600">+{timerPenalty}</span>}
+            </div>
+            <span className={`font-medium ${getCurrentDifficulty().color}`}>{getCurrentDifficulty().name}</span>
+          </div>
+        )}
+        
         {/* Large, fixed play area (always same size/position) */}
         <div className="flex flex-col items-center w-full" style={{ width: 340 }}>
           <div className="mb-2" style={{ position: 'relative', width: 340, height: 340 }}>
+            {/* Instruction Card Overlay - appears before game starts */}
+            {!gameStarted && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+                <div className="bg-white rounded-lg shadow-lg p-4 text-center max-w-[280px]">
+                  <div className="text-base text-gray-700 mb-2">10 rounds - Lowest Score Wins</div>
+                  <div className="text-sm text-gray-600 mb-1">
+                    {gameMode === 'GRIDFAST' ? 'Be fast! under 3 seconds' : 'Be fast! under 3 seconds'}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {gameMode === 'GRIDFAST' ? 'Click a 2nd time to validate' : 'Breathe in between rounds'}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* GRID FAST Countdown Overlay */}
             {gameMode === 'GRIDFAST' && (gridFastPhase === 'round' || gridFastPhase === 'go') && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 bg-black bg-opacity-50 rounded-lg">
