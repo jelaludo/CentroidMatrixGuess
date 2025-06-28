@@ -16,7 +16,7 @@ const CentroidGame = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerPenalty, setTimerPenalty] = useState(0);
   const [perfectGuess, setPerfectGuess] = useState(false);
-  const [gameMode, setGameMode] = useState('GRID'); // 'GRID', 'DOTS', 'FLOW', 'GRID2', 'GRIDFAST'
+  const [gameMode, setGameMode] = useState('GRIDFAST'); // 'GRID', 'DOTS', 'FLOW', 'GRID2', 'GRIDFAST'
   const [roundHistory, setRoundHistory] = useState([]);
   const [showRecap, setShowRecap] = useState(false);
   const [flowDots, setFlowDots] = useState([]); // For FLOW mode: {x, y, vx, vy, phase, trail: [{x, y, t}]}
@@ -842,10 +842,10 @@ const CentroidGame = () => {
       displayText = '0';
       color = 'text-green-500';
     } else if (points === 1) {
-      displayText = '①';
+      displayText = "①";
       color = 'text-blue-500';
     } else if (points === 2) {
-      displayText = '②';
+      displayText = "②";
       color = 'text-orange-500';
     } else if (points >= 9) {
       displayText = `${circledNumerals[points - 1] || points}?!?!`;
@@ -911,6 +911,7 @@ const CentroidGame = () => {
                 }`}
               >
                 GRID
+                <div className="text-[10px] opacity-70">(Slow)</div>
               </button>
               <button
                 onClick={() => {
@@ -971,7 +972,7 @@ const CentroidGame = () => {
         </div>
         {/* Header: Title, subtitle, round/difficulty/timer */}
         <div className="w-full text-center mb-2">
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">Centroid Matrix Game</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">Centroid (x̅, y̅) Game</h1>
           <div className="flex items-center justify-center mb-1">
             {/* Timer (large, 3 lines, left) */}
             {gameStarted && (
@@ -987,7 +988,7 @@ const CentroidGame = () => {
             {gameMode === 'GRIDFAST' ? 'Be fast! under 3 seconds' : 'Be fast! under 3 seconds'}
           </div>
           <div className="text-xs text-gray-400 mb-2">
-            {gameMode === 'GRIDFAST' ? 'single click to place & validate' : 'Breathe in between rounds'}
+            {gameMode === 'GRIDFAST' ? 'Click a 2nd time to validate' : 'Breathe in between rounds'}
           </div>
           <div className="flex justify-between items-center text-xs text-gray-600 w-full mb-1">
             <span>R{gameStarted ? Math.min(score.rounds + 1, MAX_ROUNDS) : 0}/{MAX_ROUNDS}</span>
@@ -1209,6 +1210,10 @@ const CentroidGame = () => {
                 <>
                   <Target size={28} />
                   PLACE
+                  <div className="text-xs opacity-70">
+                    x̅ = (1/n) Σᵢ₌₁ⁿ xᵢ<br/>
+                    y̅ = (1/n) Σᵢ₌₁ⁿ yᵢ
+                  </div>
                 </>
               ) : userGuess && !showResult && !showingAnswer ? (
                 <>
@@ -1224,6 +1229,10 @@ const CentroidGame = () => {
                 <>
                   <Target size={28} />
                   PLACE
+                  <div className="text-xs opacity-70">
+                    x̅ = (1/n) Σᵢ₌₁ⁿ xᵢ<br/>
+                    y̅ = (1/n) Σᵢ₌₁ⁿ yᵢ
+                  </div>
                 </>
               )}
             </button>
