@@ -467,21 +467,30 @@ const CentroidGame = () => {
       setShowingAnswer(true);
     }
     
-    // GRID FAST: Show points display immediately after validation
+    // GRID FAST: Show points display and solution simultaneously
     if (gameMode === 'GRIDFAST') {
       setGridFastDowntimeVisible(true); // Show grey overlay
       showGridFastPoints(totalScore);
+      // Show solution vectors immediately as well
+      setShowingAnswer(true);
     }
     
-    // GRID FAST: Auto-advance after showing solution
+    // GRID FAST: Auto-advance after showing solution and score together
     if (gameMode === 'GRIDFAST') {
       setTimeout(() => {
-        proceedToNextRound();
-      }, 2000); // Show solution for 2 seconds then auto-advance
+        // Use the currentRound that was just completed to calculate the next round
+        const nextRound = currentRound + 1;
+        if (nextRound <= MAX_ROUNDS) {
+          startGridFastRound(nextRound);
+        } else {
+          // Final round completed - show recap after points display finishes
+          setTimeout(() => setShowRecap(true), 2000); // Wait for points display to finish
+        }
+      }, 1000); // Show solution and score together for 1 second then auto-advance
     }
     
-    // Show recap if this was the final round
-    if (currentRound >= MAX_ROUNDS) {
+    // Show recap if this was the final round (for non-GRID FAST modes)
+    if (currentRound >= MAX_ROUNDS && gameMode !== 'GRIDFAST') {
       setTimeout(() => setShowRecap(true), 1000);
     }
   };
@@ -826,20 +835,23 @@ const CentroidGame = () => {
   const showGridFastPoints = (points) => {
     let displayText, color;
     
+    // Convert to circled numerals
+    const circledNumerals = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'];
+    
     if (points === 0) {
       displayText = '0';
       color = 'text-green-500';
     } else if (points === 1) {
-      displayText = '1';
+      displayText = '①';
       color = 'text-blue-500';
     } else if (points === 2) {
-      displayText = '2';
+      displayText = '②';
       color = 'text-orange-500';
     } else if (points >= 9) {
-      displayText = `${points}?!?!`;
+      displayText = `${circledNumerals[points - 1] || points}?!?!`;
       color = 'text-red-500';
     } else {
-      displayText = points.toString();
+      displayText = circledNumerals[points - 1] || points.toString();
       color = 'text-red-500';
     }
     
@@ -847,10 +859,15 @@ const CentroidGame = () => {
     setGridFastPointsColor(color);
     setGridFastPointsVisible(true);
     
-    // Hide after 2 seconds
+    // Hide after 1 second (same as solution display)
     setTimeout(() => {
       setGridFastPointsVisible(false);
-    }, 2000);
+      // Also hide solution display since they show together
+      if (gameMode === 'GRIDFAST') {
+        setShowingAnswer(false);
+        setGridFastDowntimeVisible(false);
+      }
+    }, 1000);
   };
 
   // GRID FAST: Handle round transitions with countdown
@@ -859,19 +876,19 @@ const CentroidGame = () => {
     setGridFastRoundDisplay(`Round ${roundNumber}`);
     setGridFastCountdown(1);
     
-    // After 1 second, show "GO!"
+    // After 0.5 seconds, show "GO!"
     setTimeout(() => {
       setGridFastRoundDisplay('GO!');
       setGridFastCountdown(1);
       
-      // After 1 more second, start the round
+      // After 0.5 more seconds, start the round
       setTimeout(() => {
         setGridFastPhase('playing');
         setGridFastRoundDisplay('');
         setGridFastCountdown(0);
         startNewRound();
-      }, 1000);
-    }, 1000);
+      }, 500);
+    }, 500);
   };
 
   return (
@@ -973,7 +990,7 @@ const CentroidGame = () => {
             {gameMode === 'GRIDFAST' ? 'single click to place & validate' : 'Breathe in between rounds'}
           </div>
           <div className="flex justify-between items-center text-xs text-gray-600 w-full mb-1">
-            <span>R{gameStarted ? score.rounds + 1 : 0}/{MAX_ROUNDS}</span>
+            <span>R{gameStarted ? Math.min(score.rounds + 1, MAX_ROUNDS) : 0}/{MAX_ROUNDS}</span>
             <span className={`font-medium ${getCurrentDifficulty().color}`}>{gameStarted ? getCurrentDifficulty().name : 'MODE'}</span>
             {gameStarted && (
               <span className="text-red-600">T:{score.totalMoves}</span>
@@ -1001,7 +1018,7 @@ const CentroidGame = () => {
             {/* GRID FAST Points Display Overlay */}
             {gameMode === 'GRIDFAST' && gridFastPointsVisible && (
               <div className="absolute top-4 left-1/2 transform -translate-x-1/2 pointer-events-none z-20">
-                <div className={`text-3xl font-bold animate-pulse ${gridFastPointsColor}`}>
+                <div className={`text-5xl font-bold animate-pulse ${gridFastPointsColor}`}>
                   {gridFastPointsDisplay}
                 </div>
               </div>
